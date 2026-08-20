@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   UploadCloud, FileJson, CheckCircle2, AlertCircle, 
-  ChevronRight, Calculator, User, Building, CreditCard, 
-  Sparkles, RefreshCw, AlertTriangle, ArrowRight 
+  ChevronRight, Calculator, User, CreditCard, 
+  Sparkles, RefreshCw, ArrowRight, FileSpreadsheet, Download, Check 
 } from 'lucide-react';
-import { maskPAN, maskMobile, maskAccountNumber, formatCurrency } from '../utils/masking';
+import { formatCurrency } from '../utils/masking';
 import { useNavigate } from 'react-router-dom';
 import { applicationApi } from '../services/api';
 
@@ -38,18 +38,18 @@ const PRESET_PERSONAS = [
     age: 32,
     employmentType: 'Salaried',
     declaredMonthlyIncome: 95000,
-    existingEMI: 18000,
-    requestedLoanAmount: 1000000,
+    existingEMI: 28000,
+    requestedLoanAmount: 1200000,
     requestedTenureMonths: 60,
     applicantId: 'APP002',
-    cibilScore: 680,
+    cibilScore: 720,
     writeOffs: 0,
     bounceCount: 1,
     avgMonthlyBalance: 60000,
     monthlyCredits: 95000,
     mutualFunds: 500000,
     savings: 100000,
-    description: 'CIBIL 680 is below standard 700 cutoff, but offset by ₹5L Mutual Funds liquid assets.'
+    description: 'High CIBIL (720) but FOIR 57.3% exceeds 50% threshold; routes to Exception Queue with ₹5L Mutual Funds mitigant.'
   },
   {
     id: 'AMIT',
@@ -76,9 +76,16 @@ const PRESET_PERSONAS = [
 
 const NewApplication = () => {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
+
   const [activeTab, setActiveTab] = useState('manual'); // 'manual' or 'presets' or 'upload'
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  
+  // CSV Upload States
+  const [parsedCsvRows, setParsedCsvRows] = useState([]);
+  const [csvFileName, setCsvFileName] = useState('');
+  const [isParsing, setIsParsing] = useState(false);
 
   // Form State for Manual Ingestion
   const [formData, setFormData] = useState({
@@ -110,7 +117,6 @@ const NewApplication = () => {
     }));
   };
 
-  // Dynamic live metric calculations
   const calculateLiveMetrics = () => {
     const annualRate = 0.115;
     const r = annualRate / 12;
@@ -144,7 +150,9 @@ const NewApplication = () => {
         setErrorMessage(res.message || 'Underwriting evaluation failed');
       }
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to submit application to BRE backend.');
+      console.error('Application Submission Error:', err);
+      const detail = err.response?.data?.message || (err.message === 'Network Error' ? 'Network Error: Cannot connect to BRE backend at http://localhost:5000.' : err.message) || 'Failed to submit application to BRE backend.';
+      setErrorMessage(detail);
     } finally {
       setIsSubmitting(false);
     }
@@ -172,6 +180,53 @@ const NewApplication = () => {
     });
   };
 
+  // Parse Uploaded CSV
+  const handleCsvFileUpload = (file) => {
+    if (!file) return;
+    setIsParsing(true);
+    setCsvFileName(file.name);
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      try {
+        const text = e.target.result;
+        const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+        if (lines.length < 2) {
+          setErrorMessage('CSV file is empty or does not have data rows.');
+          setIsParsing(false);
+          return;
+        }
+
+        const headers = lines[0].split(',').map(h => h.trim());
+        const rows = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const values = lines[i].split(',').map(v => v.trim());
+          if (values.length >= headers.length - 1) {
+            const rowObj = {};
+            headers.forEach((h, idx) => {
+              const rawVal = values[idx] || '';
+              if (['age', 'declaredMonthlyIncome', 'existingEMI', 'requestedLoanAmount', 'requestedTenureMonths', 'cibilScore', 'activeLoans', 'dpd', 'writeOffs', 'bounceCount', 'avgMonthlyBalance', 'monthlyCredits', 'mutualFunds', 'savings'].includes(h)) {
+                rowObj[h] = Number(rawVal) || 0;
+              } else {
+                rowObj[h] = rawVal;
+              }
+            });
+            rows.push(rowObj);
+          }
+        }
+
+        setParsedCsvRows(rows);
+      } catch (err) {
+        setErrorMessage('Failed to parse CSV file. Please ensure correct CSV formatting.');
+      } finally {
+        setIsParsing(false);
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
   return (
     <div className="max-w-6xl mx-auto pb-12 animate-in fade-in duration-500 space-y-6">
       {/* Page Header */}
@@ -181,7 +236,7 @@ const NewApplication = () => {
             <span>Loan Application Ingestion</span>
           </h1>
           <p className="text-gray-400 mt-1 text-sm">
-            Input applicant financials & bureau telemetry to execute real-time automated BRE underwriting.
+            Input applicant financials, parse CSV batch packages, or select test personas to execute BRE underwriting.
           </p>
         </div>
 
@@ -209,7 +264,7 @@ const NewApplication = () => {
               activeTab === 'upload' ? 'bg-white text-black shadow-md' : 'text-gray-400 hover:text-white'
             }`}
           >
-            Bulk / JSON Ingestion
+            Bulk / CSV Ingestion
           </button>
         </div>
       </div>
@@ -290,28 +345,106 @@ const NewApplication = () => {
         </div>
       )}
 
-      {/* Bulk JSON Upload Tab */}
+      {/* Bulk CSV / Package Ingestion Tab */}
       {activeTab === 'upload' && (
-        <div className="bg-[#111] border border-[#333] rounded-xl p-8 text-center space-y-4">
-          <div className="mx-auto w-16 h-16 bg-[#1a1a1a] border border-[#333] rounded-2xl flex items-center justify-center text-gray-400">
-            <UploadCloud className="w-8 h-8 text-white animate-pulse" />
+        <div className="space-y-6">
+          <div className="bg-[#111] border-2 border-dashed border-[#333] hover:border-gray-500 rounded-xl p-8 text-center space-y-4 transition-all">
+            <div className="mx-auto w-16 h-16 bg-[#1a1a1a] border border-[#333] rounded-2xl flex items-center justify-center text-gray-400">
+              <FileSpreadsheet className="w-8 h-8 text-white animate-pulse" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">Upload / Browse Loan Applications CSV</h3>
+              <p className="text-xs text-gray-400 max-w-md mx-auto mt-1">
+                Select or drag-and-drop <code className="text-amber-400 font-mono">sample_loan_applications.csv</code> from repository to parse multiple borrower profiles.
+              </p>
+            </div>
+
+            <input
+              type="file"
+              accept=".csv"
+              ref={fileInputRef}
+              onChange={(e) => handleCsvFileUpload(e.target.files[0])}
+              className="hidden"
+            />
+
+            <div className="pt-2 flex justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-6 py-2.5 bg-white text-black font-bold rounded-lg text-xs hover:bg-gray-200 transition-all inline-flex items-center gap-2 shadow-md"
+              >
+                <UploadCloud className="w-4 h-4" />
+                <span>Browse CSV File</span>
+              </button>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-bold text-white">Upload Consolidated Loan Package</h3>
-            <p className="text-xs text-gray-400 max-w-md mx-auto mt-1">
-              Upload JSON/CSV payload with applicant details, bureau telemetry, and bank statement parameters.
-            </p>
-          </div>
-          <div className="pt-2">
-            <button
-              onClick={() => handleApply(PRESET_PERSONAS[0])}
-              disabled={isSubmitting}
-              className="px-6 py-2.5 bg-white text-black font-bold rounded-lg text-sm hover:bg-gray-200 transition-all inline-flex items-center gap-2"
-            >
-              {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileJson className="w-4 h-4" />}
-              <span>Ingest & Evaluate Sample JSON</span>
-            </button>
-          </div>
+
+          {/* Parsed CSV Rows Table */}
+          {parsedCsvRows.length > 0 && (
+            <div className="bg-[#111] border border-[#333] rounded-xl overflow-hidden shadow-lg animate-in fade-in space-y-3">
+              <div className="px-6 py-4 border-b border-[#333] bg-[#161616] flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-400" />
+                  <h3 className="text-sm font-bold text-white">
+                    Parsed {parsedCsvRows.length} Applications from {csvFileName}
+                  </h3>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-[#181818] text-gray-400 text-xs uppercase tracking-wider">
+                    <tr>
+                      <th className="px-5 py-3 font-medium border-b border-[#2a2a2a]">Applicant</th>
+                      <th className="px-5 py-3 font-medium border-b border-[#2a2a2a]">Income (₹)</th>
+                      <th className="px-5 py-3 font-medium border-b border-[#2a2a2a]">Requested (₹)</th>
+                      <th className="px-5 py-3 font-medium border-b border-[#2a2a2a]">CIBIL</th>
+                      <th className="px-5 py-3 font-medium border-b border-[#2a2a2a]">Liquid Assets (₹)</th>
+                      <th className="px-5 py-3 font-medium border-b border-[#2a2a2a]">Expected Profile</th>
+                      <th className="px-5 py-3 font-medium border-b border-[#2a2a2a]">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#222] text-xs">
+                    {parsedCsvRows.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-[#161616] transition-colors">
+                        <td className="px-5 py-3.5">
+                          <div className="font-bold text-white">{row.name}</div>
+                          <div className="text-[10px] text-gray-500 font-mono">{row.applicantId} • {row.employmentType}</div>
+                        </td>
+                        <td className="px-5 py-3.5 text-white font-medium">
+                          {formatCurrency(row.declaredMonthlyIncome)}
+                        </td>
+                        <td className="px-5 py-3.5 text-amber-400 font-bold">
+                          {formatCurrency(row.requestedLoanAmount)}
+                          <div className="text-[10px] text-gray-500 font-normal">{row.requestedTenureMonths} Mo</div>
+                        </td>
+                        <td className="px-5 py-3.5 font-mono text-white font-semibold">
+                          {row.cibilScore}
+                        </td>
+                        <td className="px-5 py-3.5 text-gray-300">
+                          {formatCurrency((row.mutualFunds || 0) + (row.savings || 0))}
+                        </td>
+                        <td className="px-5 py-3.5 text-gray-400 text-[11px] max-w-xs">
+                          {row.expectedOutcome || '-'}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <button
+                            type="button"
+                            onClick={() => handleApply(row)}
+                            disabled={isSubmitting}
+                            className="px-3 py-1.5 bg-white text-black hover:bg-gray-200 font-bold rounded-lg text-xs transition-all inline-flex items-center gap-1 shadow-sm disabled:opacity-50"
+                          >
+                            <span>Run BRE</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

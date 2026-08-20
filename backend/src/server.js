@@ -19,6 +19,12 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 
+// Request logging middleware for debugging & audit
+app.use((req, res, next) => {
+  console.log(`📡 [${new Date().toLocaleTimeString()}] ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/rules', rulesRoutes);

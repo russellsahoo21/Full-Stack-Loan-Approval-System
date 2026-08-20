@@ -23,8 +23,8 @@ router.get('/audit-logs/all', protect, authorize('POLICY_ADMIN', 'CREDIT_OFFICER
 // Protected application lookup by ID
 router.get('/:id', protect, getApplicationById);
 
-// Version evaluation comparison (Admin & Officers)
-router.get('/:id/evaluate-version/:targetVersion', protect, authorize('POLICY_ADMIN', 'CREDIT_OFFICER_L1', 'CREDIT_OFFICER_L2'), evaluateApplicationUnderVersion);
+// Version evaluation comparison (Admin, Officers & Applicants)
+router.get('/:id/evaluate-version/:targetVersion', protect, authorize('POLICY_ADMIN', 'CREDIT_OFFICER_L1', 'CREDIT_OFFICER_L2', 'APPLICANT'), evaluateApplicationUnderVersion);
 
 // Exception decision approval/rejection (Admin & Officers)
 router.post('/:id/exception', protect, authorize('CREDIT_OFFICER_L1', 'CREDIT_OFFICER_L2', 'POLICY_ADMIN'), handleExceptionDecision);
