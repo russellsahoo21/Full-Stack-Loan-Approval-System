@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { LoanApplication } from '../models/LoanApplication.js';
 import { ApplicantProfile } from '../models/ApplicantProfile.js';
 import { AuditLog } from '../models/AuditLog.js';
@@ -12,6 +13,16 @@ import {
 import { KNOWN_BUREAU_PROFILES } from '../services/bureauService.js';
 
 const router = express.Router();
+
+// Safe query builder to prevent Mongoose ObjectId CastError on custom alphanumeric IDs
+const buildAppQuery = (id) => {
+  if (!id) return {};
+  const isObjectId = mongoose.Types.ObjectId.isValid(id) && String(new mongoose.Types.ObjectId(id)) === String(id);
+  if (isObjectId) {
+    return { $or: [{ applicationId: id }, { _id: id }] };
+  }
+  return { applicationId: id };
+};
 
 // Helper to fetch all profiles as a map
 const getProfilesMap = async () => {
@@ -115,7 +126,7 @@ router.post('/escalate/:id', protect, authorize('CREDIT_OFFICER_L1', 'CREDIT_OFF
     if (isDbConnected) {
       try {
         updatedApp = await LoanApplication.findOneAndUpdate(
-          { $or: [{ applicationId: id }, { _id: id }] },
+          buildAppQuery(id),
           updateDoc,
           { new: true }
         );
@@ -176,7 +187,7 @@ router.post('/batch-decision', protect, async (req, res) => {
       try {
         for (const appId of applicationIds) {
           const app = await LoanApplication.findOneAndUpdate(
-            { $or: [{ applicationId: appId }, { _id: appId }] },
+            buildAppQuery(appId),
             {
               status: newStatus,
               escalatedToL2: false,
