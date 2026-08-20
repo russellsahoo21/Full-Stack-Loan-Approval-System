@@ -24,20 +24,23 @@ const memoryRuleSets = [
 
 const checkMongo = () => isDbConnected && mongoose.connection.readyState === 1;
 
+export const getActiveRuleSetDoc = async () => {
+  if (checkMongo()) {
+    try {
+      const activeRuleSet = await RuleSet.findOne({ isActive: true });
+      if (activeRuleSet) return activeRuleSet;
+      const latest = await RuleSet.findOne().sort({ version: -1 });
+      if (latest) return latest;
+    } catch (dbErr) {
+      console.warn('getActiveRuleSetDoc DB fallback:', dbErr.message);
+    }
+  }
+  return memoryRuleSets.find(r => r.isActive) || memoryRuleSets[0];
+};
+
 export const getActiveRuleSet = async (req, res) => {
   try {
-    if (checkMongo()) {
-      try {
-        const activeRuleSet = await RuleSet.findOne({ isActive: true });
-        if (activeRuleSet) {
-          return res.json({ success: true, data: activeRuleSet });
-        }
-      } catch (dbErr) {
-        console.warn('DB fetch fallback:', dbErr.message);
-      }
-    }
-
-    const activeSet = memoryRuleSets.find(r => r.isActive) || memoryRuleSets[0];
+    const activeSet = await getActiveRuleSetDoc();
     res.json({ success: true, data: activeSet });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

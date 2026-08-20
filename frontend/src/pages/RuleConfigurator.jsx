@@ -408,28 +408,60 @@ const RuleConfigurator = () => {
                   </span>
 
                   {/* Threshold quick input */}
-                  <div className="w-32 bg-[#181818] border border-[#2a2a2a] p-2.5 rounded-xl">
-                    <div className="text-[10px] text-gray-500 mb-1">Threshold</div>
+                  <div className={clsx(
+                    "w-36 bg-[#181818] border p-2.5 rounded-xl transition-all",
+                    activeRuleSet?.rules?.[idx] && Number(rule.threshold) !== Number(activeRuleSet.rules[idx].threshold)
+                      ? "border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                      : "border-[#2a2a2a]"
+                  )}>
+                    <div className="flex justify-between items-center text-[10px] text-gray-500 mb-1">
+                      <span>Threshold</span>
+                      {activeRuleSet?.rules?.[idx] && Number(rule.threshold) !== Number(activeRuleSet.rules[idx].threshold) && (
+                        <span className="text-amber-400 font-bold text-[9px] animate-pulse">MODIFIED</span>
+                      )}
+                    </div>
                     <input
                       type="number"
                       value={rule.threshold}
                       onChange={(e) => handleThresholdChange(idx, e.target.value)}
-                      className="w-full bg-[#111] border border-[#333] text-white text-center px-2 py-1 rounded text-sm font-bold font-mono focus:outline-none"
+                      className={clsx(
+                        "w-full bg-[#111] border text-center px-2 py-1 rounded text-sm font-bold font-mono focus:outline-none transition-all",
+                        activeRuleSet?.rules?.[idx] && Number(rule.threshold) !== Number(activeRuleSet.rules[idx].threshold)
+                          ? "border-amber-500/60 text-amber-300"
+                          : "border-[#333] text-white"
+                      )}
                     />
                   </div>
+
+                  {/* Quick Deploy button if threshold changed */}
+                  {activeRuleSet?.rules?.[idx] && Number(rule.threshold) !== Number(activeRuleSet.rules[idx].threshold) && (
+                    <button
+                      onClick={() => handlePatchRule(activeRuleSet.rules[idx], {
+                        newThreshold: Number(rule.threshold),
+                        newActionOnFail: rule.actionOnFail,
+                        changeReason: `Direct threshold update for ${rule.ruleCode}: ${activeRuleSet.rules[idx].threshold} → ${rule.threshold}`,
+                        effectiveFrom: new Date().toISOString().split('T')[0]
+                      })}
+                      disabled={isPatching}
+                      className="flex items-center gap-1 px-3 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl text-xs shadow-[0_0_15px_rgba(245,158,11,0.3)] transition-all shrink-0"
+                    >
+                      {isPatching ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                      <span>Save v{(activeRuleSet?.version || 1) + 1}</span>
+                    </button>
+                  )}
 
                   {/* Edit button */}
                   <button
                     onClick={() => setEditingRuleIdx(editingRuleIdx === idx ? null : idx)}
                     className={clsx(
-                      'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all',
+                      'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all shrink-0',
                       editingRuleIdx === idx
                         ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
                         : 'bg-[#1a1a1a] border-[#333] text-gray-400 hover:border-amber-500/50 hover:text-amber-400'
                     )}
                   >
                     <Edit3 className="w-3.5 h-3.5" />
-                    {editingRuleIdx === idx ? 'Cancel' : 'Edit'}
+                    {editingRuleIdx === idx ? 'Cancel' : 'Advanced'}
                   </button>
                 </div>
               </div>

@@ -5,6 +5,7 @@ import { RuleSet } from '../models/RuleSet.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { runBRE } from '../bre/engine.js';
 import { isDbConnected } from '../config/db.js';
+import { getActiveRuleSetDoc } from './rulesController.js';
 
 // Default fallback rule set if DB is offline or buffering
 const defaultRuleSetV1 = {
@@ -78,7 +79,6 @@ export const submitLoanApplication = async (req, res) => {
     memoryProfiles[applicantId] = profileData;
 
     let profile = profileData;
-    let activeRuleSet = null;
 
     if (checkMongo()) {
       try {
@@ -87,19 +87,12 @@ export const submitLoanApplication = async (req, res) => {
           profileData,
           { new: true, upsert: true }
         );
-
-        activeRuleSet = await RuleSet.findOne({ isActive: true });
-        if (!activeRuleSet) {
-          activeRuleSet = await RuleSet.findOne().sort({ version: -1 });
-        }
       } catch (dbErr) {
         console.warn('DB operation warning in submitLoanApplication, falling back to memory execution:', dbErr.message);
       }
     }
 
-    if (!activeRuleSet) {
-      activeRuleSet = defaultRuleSetV1;
-    }
+    const activeRuleSet = await getActiveRuleSetDoc();
 
     const loanAmount = requestedLoanAmount || 800000;
     const tenure = requestedTenureMonths || 60;
