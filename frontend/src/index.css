@@ -76,12 +76,27 @@
    STRICT MONOCHROME WHITE PALETTE: Text, Icons, Bars, Accents
    ========================================================================== */
 
-/* Universal SVG / Icon white enforcement */
-svg, svg * {
-  color: #ffffff !important;
+/* Universal SVG / Icon color enforcement with proper contrast */
+svg {
+  color: inherit;
+  stroke: currentColor;
 }
-svg:not([fill="none"]) {
-  fill: #ffffff !important;
+
+/* When inside white/light buttons, cards, or text-black containers, icons MUST be black */
+.bg-white svg,
+.bg-white svg *,
+[class*="bg-white"] svg,
+[class*="bg-white"] svg *,
+.text-black svg,
+.text-black svg * {
+  color: #000000 !important;
+  stroke: #000000 !important;
+}
+
+/* When on dark background, default icons to white */
+:not([class*="bg-white"]):not(.text-black) > svg,
+:not([class*="bg-white"]):not(.text-black) svg {
+  color: #ffffff;
 }
 
 /* Map all colored text classes to pure / crisp white shades */
