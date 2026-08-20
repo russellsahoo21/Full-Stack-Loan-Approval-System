@@ -293,46 +293,6 @@ const ApplicationDetail = () => {
           </Link>
         </div>
       </div>
-      {/* Applicant Status Timeline */}
-      {currentRole === ROLES.APPLICANT && (
-        <div className="bg-[#111] border border-[#333] rounded-xl p-6 shadow-lg">
-          <div className="flex items-center gap-2 mb-5 pb-3 border-b border-[#222]">
-            <Calendar className="w-4 h-4 text-blue-400" />
-            <h3 className="font-semibold text-white text-sm">Application Status Timeline</h3>
-          </div>
-          <div className="flex items-start gap-0">
-            {[
-              { label: 'Submitted', done: true },
-              { label: 'BRE Evaluated', done: true },
-              { label: 'Under Review', done: application.status.includes('EXCEPTION') && application.status.includes('REQUIRED') },
-              { label: 'Final Decision', done: !application.status.includes('REQUIRED') },
-            ].map((step, i, arr) => {
-              const isLast = i === arr.length - 1;
-              const isCurrent = !step.done && (i === 0 || arr[i-1].done);
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                  <div className="flex items-center w-full">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                      step.done ? 'bg-green-500 text-white' : isCurrent ? 'bg-yellow-500/20 border border-yellow-500 text-yellow-400' : 'bg-[#222] border border-[#333] text-gray-600'
-                    }`}>
-                      {step.done ? <Check className="w-3.5 h-3.5" /> : i + 1}
-                    </div>
-                    {!isLast && <div className={`flex-1 h-0.5 ${step.done ? 'bg-green-500/50' : 'bg-[#333]'}`} />}
-                  </div>
-                  <span className={`text-[11px] text-center font-medium ${
-                    step.done ? 'text-green-400' : isCurrent ? 'text-yellow-400' : 'text-gray-600'
-                  }`}>{step.label}</span>
-                </div>
-              );
-            })}
-          </div>
-          <div className="mt-4 pt-3 border-t border-[#222] text-xs text-center">
-            <span className="text-gray-400">Current Status: </span>
-            <span className="font-bold text-white">{application.status.replace(/_/g, ' ')}</span>
-          </div>
-        </div>
-      )}
-
 
       <div className={clsx("rounded-xl p-6 border flex flex-col sm:flex-row items-start gap-4 shadow-lg", currentStatus.color)}>
         <div className="bg-[#111] p-2.5 rounded-xl border border-white/10 shrink-0">
