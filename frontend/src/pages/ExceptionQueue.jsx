@@ -3,11 +3,12 @@ import { useAuth, ROLES } from '../context/AuthContext';
 import { 
   Search, Filter, Clock, CheckCircle, XCircle, 
   ChevronRight, AlertTriangle, MessageSquare, History, 
-  User, FileText, RefreshCw, AlertCircle, Sparkles, Check 
+  User, FileText, RefreshCw, AlertCircle, Sparkles, Check,
+  ArrowUpRight
 } from 'lucide-react';
 import { formatCurrency } from '../utils/masking';
 import { useNavigate, Link } from 'react-router-dom';
-import { applicationApi } from '../services/api';
+import { applicationApi, exceptionsApi } from '../services/api';
 import clsx from 'clsx';
 
 const ExceptionQueue = () => {
@@ -27,16 +28,27 @@ const ExceptionQueue = () => {
     try {
       const res = await applicationApi.getAll();
       if (res.success) {
-        // Backend already filters by role, but add a frontend guard for safety
         const allApps = res.data || [];
         let exceptions;
         if (currentRole === ROLES.L1) {
-          exceptions = allApps.filter(app => app.status === 'EXCEPTION_L1_REQUIRED');
+          exceptions = allApps.filter(app => 
+            app.status === 'EXCEPTION_L1_REQUIRED' || 
+            (app.status === 'EXCEPTION_REQUIRED' && !app.escalatedToL2 && app.exceptionDetails?.exceptionLevel !== 'L2' && (app.requestedLoanAmount || 0) <= 1500000)
+          );
         } else if (currentRole === ROLES.L2) {
-          exceptions = allApps.filter(app => app.status === 'EXCEPTION_L2_REQUIRED');
+          exceptions = allApps.filter(app => 
+            app.status === 'EXCEPTION_L2_REQUIRED' || 
+            app.escalatedToL2 === true || 
+            app.exceptionDetails?.exceptionLevel === 'L2' ||
+            (app.status === 'EXCEPTION_REQUIRED' && (app.requestedLoanAmount || 0) > 1500000)
+          );
         } else {
-          // Admin sees all exceptions
-          exceptions = allApps.filter(app => app.status.includes('EXCEPTION') && app.status.includes('REQUIRED'));
+          // Admin sees all pending exceptions
+          exceptions = allApps.filter(app => 
+            app.status === 'EXCEPTION_L1_REQUIRED' || 
+            app.status === 'EXCEPTION_L2_REQUIRED' || 
+            app.status === 'EXCEPTION_REQUIRED'
+          );
         }
         setQueue(exceptions);
       }
@@ -85,6 +97,29 @@ const ExceptionQueue = () => {
     }
   };
 
+  const handleEscalateToL2 = async () => {
+    if (!justification) {
+      alert('Please enter escalation rationale in the justification box below.');
+      return;
+    }
+    setIsSubmittingAction(true);
+    setActionSuccessMsg('');
+    try {
+      const appId = selectedApp.applicationId || selectedApp._id;
+      const res = await exceptionsApi.escalateToL2(appId, justification);
+      if (res.success) {
+        setActionSuccessMsg(`Application ${appId} successfully escalated to Senior Credit Officer L2 Queue.`);
+        setSelectedApp(null);
+        setJustification('');
+        await fetchExceptions();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to escalate application to L2');
+    } finally {
+      setIsSubmittingAction(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto flex h-[calc(100vh-8rem)] relative overflow-hidden animate-in fade-in duration-500">
       
@@ -106,10 +141,10 @@ const ExceptionQueue = () => {
             </div>
             <p className="text-xs text-gray-400 mt-1">
               {currentRole === ROLES.L1
-                ? 'Minor policy deviations (FOIR, soft limits) awaiting your L1 underwriting review.'
+                ? 'Standard policy deviations (FOIR, soft limits, loan <= ₹15L) awaiting your L1 underwriting review.'
                 : currentRole === ROLES.L2
-                ? 'Escalated high-risk or complex exceptions requiring Credit Head approval.'
-                : 'Full exception queue across all tiers — L1 standard deviations and L2 escalations.'}
+                ? 'Escalated high-exposure (> ₹15L) or multi-deviation exceptions requiring Credit Head approval.'
+                : 'Full exception queue across all tiers — L1 standard deviations and L2 senior escalations.'}
             </p>
           </div>
           
@@ -175,47 +210,54 @@ const ExceptionQueue = () => {
                     <td colSpan="6" className="px-6 py-16 text-center text-gray-500">
                       <CheckCircle className="w-8 h-8 text-green-500/50 mx-auto mb-2" />
                       <p className="text-sm text-gray-300 font-semibold">Queue is clear!</p>
-                      <p className="text-xs text-gray-500 mt-1">No applications currently awaiting credit exception review.</p>
+                      <p className="text-xs text-gray-500 mt-1">No applications currently awaiting credit exception review in this queue.</p>
                     </td>
                   </tr>
                 ) : (
-                  filteredQueue.map((app) => (
-                    <tr key={app.applicationId || app._id} className="hover:bg-[#181818] transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="font-bold text-white">{app.applicationId}</div>
-                        <div className="text-gray-400 font-mono text-[11px]">Applicant: {app.applicantId}</div>
-                      </td>
-                      <td className="px-6 py-4 font-bold text-white">
-                        {formatCurrency(app.requestedLoanAmount)}
-                        <div className="text-[10px] text-gray-500 font-normal">{app.requestedTenureMonths} Mo</div>
-                      </td>
-                      <td className="px-6 py-4 max-w-xs">
-                        <div className="flex items-start gap-1.5 text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 px-2.5 py-1.5 rounded-lg text-xs leading-relaxed">
-                          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                          <span className="truncate">
-                            {app.exceptionDetails?.deviations?.[0] || 'Deviation from standard policy parameter'}
+                  filteredQueue.map((app) => {
+                    const isL2Case = app.status === 'EXCEPTION_L2_REQUIRED' || app.escalatedToL2 || app.exceptionDetails?.exceptionLevel === 'L2' || (app.requestedLoanAmount > 1500000);
+                    return (
+                      <tr key={app.applicationId || app._id} className="hover:bg-[#181818] transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="font-bold text-white">{app.applicationId}</div>
+                          <div className="text-gray-400 font-mono text-[11px]">Applicant: {app.applicantId}</div>
+                        </td>
+                        <td className="px-6 py-4 font-bold text-white">
+                          {formatCurrency(app.requestedLoanAmount)}
+                          <div className="text-[10px] text-gray-500 font-normal">{app.requestedTenureMonths} Mo</div>
+                        </td>
+                        <td className="px-6 py-4 max-w-xs">
+                          <div className="flex items-start gap-1.5 text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 px-2.5 py-1.5 rounded-lg text-xs leading-relaxed">
+                            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                            <span className="truncate">
+                              {app.exceptionDetails?.deviations?.[0] || 'Deviation from standard policy parameter'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 font-mono text-gray-400">
+                          v{app.ruleSetVersion || 1}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2.5 py-1 text-[10px] uppercase font-bold rounded-full ${
+                            isL2Case 
+                              ? 'bg-orange-500/10 text-orange-400 border border-orange-500/30' 
+                              : 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
+                          }`}>
+                            {isL2Case ? '⚡ L2 Senior Escalation' : '🛡️ L1 Standard Review'}
                           </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 font-mono text-gray-400">
-                        v{app.ruleSetVersion}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-0.5 text-[10px] uppercase font-bold rounded-full ${app.status === 'EXCEPTION_L2_REQUIRED' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
-                          {app.status === 'EXCEPTION_L2_REQUIRED' ? 'L2 Review' : 'L1 Review'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <button 
-                          onClick={() => setSelectedApp(app)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-black bg-white hover:bg-gray-200 rounded-lg transition-all shadow-sm"
-                        >
-                          <span>Review</span>
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td className="px-6 py-4">
+                          <button 
+                            onClick={() => setSelectedApp(app)}
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-black bg-white hover:bg-gray-200 rounded-lg transition-all shadow-sm"
+                          >
+                            <span>Review</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -294,23 +336,38 @@ const ExceptionQueue = () => {
               />
             </div>
 
-            <div className="pt-2 flex gap-3">
-              <button 
-                onClick={() => handleAction('REJECT')}
-                disabled={!justification || isSubmittingAction}
-                className="flex-1 flex justify-center items-center gap-1.5 py-2.5 bg-transparent border border-red-500/50 text-red-400 font-bold rounded-xl text-xs hover:bg-red-500/10 transition-all disabled:opacity-40"
-              >
-                <XCircle className="w-4 h-4" />
-                <span>Reject</span>
-              </button>
-              <button 
-                onClick={() => handleAction('APPROVE')}
-                disabled={!justification || isSubmittingAction}
-                className="flex-1 flex justify-center items-center gap-1.5 py-2.5 bg-white text-black font-bold rounded-xl text-xs hover:bg-gray-200 transition-all shadow-md disabled:opacity-40"
-              >
-                <CheckCircle className="w-4 h-4" />
-                <span>Approve Override</span>
-              </button>
+            {/* Actions: L1 Escalate Option + Approve + Reject */}
+            <div className="pt-2 space-y-2.5">
+              {currentRole === ROLES.L1 && !selectedApp.escalatedToL2 && selectedApp.status !== 'EXCEPTION_L2_REQUIRED' && (
+                <button
+                  type="button"
+                  onClick={handleEscalateToL2}
+                  disabled={!justification || isSubmittingAction}
+                  className="w-full py-2.5 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/40 text-orange-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all disabled:opacity-40"
+                >
+                  <ArrowUpRight className="w-4 h-4" />
+                  <span>Escalate to Senior L2 Head</span>
+                </button>
+              )}
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => handleAction('REJECT')}
+                  disabled={!justification || isSubmittingAction}
+                  className="flex-1 flex justify-center items-center gap-1.5 py-2.5 bg-transparent border border-red-500/50 text-red-400 font-bold rounded-xl text-xs hover:bg-red-500/10 transition-all disabled:opacity-40"
+                >
+                  <XCircle className="w-4 h-4" />
+                  <span>Reject</span>
+                </button>
+                <button 
+                  onClick={() => handleAction('APPROVE')}
+                  disabled={!justification || isSubmittingAction}
+                  className="flex-1 flex justify-center items-center gap-1.5 py-2.5 bg-white text-black font-bold rounded-xl text-xs hover:bg-gray-200 transition-all shadow-md disabled:opacity-40"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Approve Override</span>
+                </button>
+              </div>
             </div>
 
             <div className="pt-2 text-center">

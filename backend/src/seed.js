@@ -158,18 +158,45 @@ const seedData = async () => {
       kycStatus: 'VERIFIED_NSDL_UIDAI'
     });
 
-    console.log('Applicant Profiles seeded: APP001 (Rahul), APP002 (Priya), APP003 (Amit), APP201 (Sumit Kumar - Student NTC)');
+    const profile5 = await ApplicantProfile.create({
+      applicantId: 'APP005',
+      name: 'Rajesh Verma',
+      panNumber: 'GTUPO2553F',
+      aadhaarNumber: '977453541212',
+      age: 29,
+      employmentType: 'Salaried',
+      declaredMonthlyIncome: 85000,
+      existingEMI: 28000,
+      cibilScore: 721,
+      scoreCategory: 'Prime',
+      activeLoans: 2,
+      dpd: 0,
+      writeOffs: 0,
+      defaults: 0,
+      avgMonthlyBalance: 42000,
+      monthlyCredits: 85000,
+      bounceCount: 1,
+      lastYearIncome: 950000,
+      currentYearIncome: 1020000,
+      mutualFunds: 650000,
+      savings: 168000,
+      kycStatus: 'VERIFIED_NSDL_UIDAI'
+    });
+
+    console.log('Applicant Profiles seeded: APP001 (Rahul), APP002 (Priya - L1 Exception), APP003 (Amit), APP201 (Sumit NTC), APP005 (Rajesh - L2 Exception)');
 
     // Run BRE & Seed Initial Loan Applications
     const appsToSeed = [
       { profile: profile1, amount: 800000, tenure: 60, appId: 'LOAN1001' },
-      { profile: profile2, amount: 1200000, tenure: 60, appId: 'LOAN1002' },
+      { profile: profile2, amount: 1200000, tenure: 60, appId: 'LOAN1002' }, // L1 Exception (FOIR > 50%, amount <= 15L)
       { profile: profile3, amount: 500000, tenure: 36, appId: 'LOAN1003' },
       { profile: profile4, amount: 45000, tenure: 12, appId: 'LOAN1004' },
+      { profile: profile5, amount: 2500000, tenure: 60, appId: 'LOAN1005' }, // L2 Exception (High exposure > 15L with FOIR deviation)
     ];
 
     for (const item of appsToSeed) {
-      const breRes = runBRE(item.profile, item.amount, item.tenure, ruleSetV1);
+      const profileObj = item.profile.toObject ? item.profile.toObject() : item.profile;
+      const breRes = runBRE(profileObj, item.amount, item.tenure, ruleSetV1);
       
       const app = await LoanApplication.create({
         applicationId: item.appId,
@@ -178,7 +205,7 @@ const seedData = async () => {
         aadhaarNumber: item.profile.aadhaarNumber,
         requestedLoanAmount: item.amount,
         requestedTenureMonths: item.tenure,
-        profileSnapshot: item.profile.toObject ? item.profile.toObject() : item.profile,
+        profileSnapshot: profileObj,
         status: breRes.decision,
         ruleSetVersion: ruleSetV1.version,
         derivedMetrics: breRes.derivedMetrics,

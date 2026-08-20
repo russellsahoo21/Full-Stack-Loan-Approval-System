@@ -54,7 +54,7 @@ router.get('/clusters', protect, async (req, res) => {
     if (isDbConnected) {
       try {
         applications = await LoanApplication.find({
-          status: 'EXCEPTION_REQUIRED'
+          status: { $in: ['EXCEPTION_REQUIRED', 'EXCEPTION_L1_REQUIRED', 'EXCEPTION_L2_REQUIRED'] }
         }).sort({ createdAt: -1 }).lean();
       } catch (dbErr) {
         console.warn('DB exception applications fetch warning:', dbErr.message);
@@ -83,9 +83,13 @@ router.get('/l2-queue', protect, async (req, res) => {
     if (isDbConnected) {
       try {
         escalatedApps = await LoanApplication.find({
-          escalatedToL2: true,
-          status: 'EXCEPTION_REQUIRED'
-        }).sort({ escalatedAt: -1 }).lean();
+          $or: [
+            { escalatedToL2: true, status: { $in: ['EXCEPTION_REQUIRED', 'EXCEPTION_L1_REQUIRED', 'EXCEPTION_L2_REQUIRED'] } },
+            { status: 'EXCEPTION_L2_REQUIRED' },
+            { 'exceptionDetails.exceptionLevel': 'L2', status: { $in: ['EXCEPTION_REQUIRED', 'EXCEPTION_L1_REQUIRED', 'EXCEPTION_L2_REQUIRED'] } },
+            { status: 'EXCEPTION_REQUIRED', requestedLoanAmount: { $gt: 1500000 } }
+          ]
+        }).sort({ escalatedAt: -1, createdAt: -1 }).lean();
       } catch (dbErr) {
         console.warn('DB L2 queue fetch warning:', dbErr.message);
       }

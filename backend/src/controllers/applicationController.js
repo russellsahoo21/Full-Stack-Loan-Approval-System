@@ -225,13 +225,24 @@ export const getAllApplications = async (req, res) => {
         }
         return { $or: applicantConditions };
       } else if (role === 'CREDIT_OFFICER_L1') {
-        if (baseFilter.status) {
-          baseFilter.status = { $in: ['EXCEPTION_REQUIRED', 'EXCEPTION_L1_REQUIRED'] };
-        }
+        // L1 officers see standard L1 exceptions (single policy deviation, normal loan exposure)
+        baseFilter.$or = [
+          { status: 'EXCEPTION_L1_REQUIRED' },
+          { 
+            status: 'EXCEPTION_REQUIRED', 
+            escalatedToL2: { $ne: true },
+            'exceptionDetails.exceptionLevel': { $ne: 'L2' },
+            requestedLoanAmount: { $lte: 1500000 }
+          }
+        ];
       } else if (role === 'CREDIT_OFFICER_L2') {
-        if (baseFilter.status) {
-          baseFilter.status = { $in: ['EXCEPTION_REQUIRED', 'EXCEPTION_L2_REQUIRED'] };
-        }
+        // L2 officers see high-risk/escalated L2 exceptions (escalatedToL2, exceptionLevel L2, or loan > 15L)
+        baseFilter.$or = [
+          { status: 'EXCEPTION_L2_REQUIRED' },
+          { escalatedToL2: true },
+          { 'exceptionDetails.exceptionLevel': 'L2' },
+          { status: 'EXCEPTION_REQUIRED', requestedLoanAmount: { $gt: 1500000 } }
+        ];
       }
       // Officers and Admins see full pipeline on Dashboard & Ledger
       return baseFilter;
@@ -262,14 +273,18 @@ export const getAllApplications = async (req, res) => {
         (userName && a.profileSnapshot?.name === userName) ||
         (userEmail && a.profileSnapshot?.email === userEmail)
       );
-    } else if (status) {
-      if (role === 'CREDIT_OFFICER_L1') {
-        memApps = memApps.filter(a => a.status === 'EXCEPTION_REQUIRED' || a.status === 'EXCEPTION_L1_REQUIRED');
-      } else if (role === 'CREDIT_OFFICER_L2') {
-        memApps = memApps.filter(a => a.status === 'EXCEPTION_REQUIRED' || a.status === 'EXCEPTION_L2_REQUIRED');
-      } else {
-        memApps = memApps.filter(a => a.status === status);
-      }
+    } else if (role === 'CREDIT_OFFICER_L1') {
+      memApps = memApps.filter(a => 
+        a.status === 'EXCEPTION_L1_REQUIRED' || 
+        (a.status === 'EXCEPTION_REQUIRED' && !a.escalatedToL2 && a.exceptionDetails?.exceptionLevel !== 'L2' && (a.requestedLoanAmount || 0) <= 1500000)
+      );
+    } else if (role === 'CREDIT_OFFICER_L2') {
+      memApps = memApps.filter(a => 
+        a.status === 'EXCEPTION_L2_REQUIRED' || 
+        a.escalatedToL2 === true || 
+        a.exceptionDetails?.exceptionLevel === 'L2' ||
+        (a.status === 'EXCEPTION_REQUIRED' && (a.requestedLoanAmount || 0) > 1500000)
+      );
     }
 
     applications = (status && role === 'POLICY_ADMIN') ? memApps.filter(a => a.status === status) : memApps;

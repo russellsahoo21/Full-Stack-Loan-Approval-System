@@ -229,7 +229,9 @@ export const buildExceptionClusters = (applications, profilesMap = {}) => {
 
   // Filter only applications currently pending exception review
   const exceptionApps = applications.filter((app) => 
-    app.status === 'EXCEPTION_REQUIRED'
+    app.status === 'EXCEPTION_REQUIRED' || 
+    app.status === 'EXCEPTION_L1_REQUIRED' || 
+    app.status === 'EXCEPTION_L2_REQUIRED'
   );
 
   exceptionApps.forEach((app) => {
