@@ -3,6 +3,9 @@ import dotenv from 'dotenv';
 import { User } from './models/User.js';
 import { RuleSet } from './models/RuleSet.js';
 import { ApplicantProfile } from './models/ApplicantProfile.js';
+import { LoanApplication } from './models/LoanApplication.js';
+import { AuditLog } from './models/AuditLog.js';
+import { runBRE } from './bre/engine.js';
 
 dotenv.config();
 
@@ -16,6 +19,8 @@ const seedData = async () => {
     await User.deleteMany({});
     await RuleSet.deleteMany({});
     await ApplicantProfile.deleteMany({});
+    await LoanApplication.deleteMany({});
+    await AuditLog.deleteMany({});
 
     // Seed Users
     const admin = await User.create({
@@ -32,6 +37,13 @@ const seedData = async () => {
       role: 'CREDIT_OFFICER_L1'
     });
 
+    const officer2 = await User.create({
+      name: 'Credit Officer L2',
+      email: 'officer2@nbfc.com',
+      password: 'officer123',
+      role: 'CREDIT_OFFICER_L2'
+    });
+
     const applicantUser = await User.create({
       name: 'Rahul Sharma',
       email: 'rahul@gmail.com',
@@ -39,7 +51,7 @@ const seedData = async () => {
       role: 'APPLICANT'
     });
 
-    console.log('Users seeded: Admin, Officer, Applicant');
+    console.log('Users seeded: Admin, Officer L1, Officer L2, Applicant');
 
     // Seed RuleSet v1
     const ruleSetV1 = await RuleSet.create({
@@ -107,8 +119,8 @@ const seedData = async () => {
 
     console.log('RuleSet v1 seeded and set as active!');
 
-    // Seed Applicant Profile APP001 (Rahul Sharma)
-    await ApplicantProfile.create({
+    // Seed Applicant Profiles
+    const profile1 = await ApplicantProfile.create({
       applicantId: 'APP001',
       name: 'Rahul Sharma',
       age: 29,
@@ -129,8 +141,90 @@ const seedData = async () => {
       savings: 50000
     });
 
-    console.log('Applicant Profile APP001 (Rahul Sharma) seeded successfully!');
+    const profile2 = await ApplicantProfile.create({
+      applicantId: 'APP002',
+      name: 'Priya Patel',
+      age: 32,
+      employmentType: 'Salaried',
+      declaredMonthlyIncome: 95000,
+      existingEMI: 18000,
+      cibilScore: 680,
+      activeLoans: 2,
+      dpd: 0,
+      writeOffs: 0,
+      defaults: 0,
+      avgMonthlyBalance: 60000,
+      monthlyCredits: 95000,
+      bounceCount: 1,
+      lastYearIncome: 1050000,
+      currentYearIncome: 1180000,
+      mutualFunds: 500000,
+      savings: 100000
+    });
 
+    const profile3 = await ApplicantProfile.create({
+      applicantId: 'APP003',
+      name: 'Amit Kumar',
+      age: 26,
+      employmentType: 'Salaried',
+      declaredMonthlyIncome: 60000,
+      existingEMI: 10000,
+      cibilScore: 650,
+      activeLoans: 3,
+      dpd: 30,
+      writeOffs: 1,
+      defaults: 0,
+      avgMonthlyBalance: 12000,
+      monthlyCredits: 50000,
+      bounceCount: 4,
+      lastYearIncome: 650000,
+      currentYearIncome: 720000,
+      mutualFunds: 0,
+      savings: 5000
+    });
+
+    console.log('Applicant Profiles seeded: APP001, APP002, APP003');
+
+    // Run BRE & Seed Initial Loan Applications
+    const appsToSeed = [
+      { profile: profile1, amount: 800000, tenure: 60, appId: 'LOAN1001' },
+      { profile: profile2, amount: 1000000, tenure: 60, appId: 'LOAN1002' },
+      { profile: profile3, amount: 500000, tenure: 36, appId: 'LOAN1003' },
+    ];
+
+    for (const item of appsToSeed) {
+      const breRes = runBRE(item.profile, item.amount, item.tenure, ruleSetV1);
+      
+      const app = await LoanApplication.create({
+        applicationId: item.appId,
+        applicantId: item.profile.applicantId,
+        requestedLoanAmount: item.amount,
+        requestedTenureMonths: item.tenure,
+        status: breRes.decision,
+        ruleSetVersion: ruleSetV1.version,
+        derivedMetrics: breRes.derivedMetrics,
+        scorecard: breRes.scorecard,
+        evaluationResult: breRes.evaluationResult,
+        exceptionDetails: breRes.exceptionDetails
+      });
+
+      await AuditLog.create({
+        applicationId: item.appId,
+        applicantId: item.profile.applicantId,
+        ruleSetVersion: ruleSetV1.version,
+        decision: breRes.decision,
+        evaluatedBy: 'System (Automated BRE)',
+        evaluationSnapshot: {
+          scorecard: breRes.scorecard,
+          derivedMetrics: breRes.derivedMetrics,
+          evaluationResult: breRes.evaluationResult
+        }
+      });
+    }
+
+    console.log('Initial Loan Applications seeded: LOAN1001 (APPROVED), LOAN1002 (EXCEPTION_REQUIRED), LOAN1003 (REJECTED)');
+
+    console.log('✅ Seeding complete! Database is fully populated.');
     process.exit(0);
   } catch (error) {
     console.error('Seeding error:', error);
