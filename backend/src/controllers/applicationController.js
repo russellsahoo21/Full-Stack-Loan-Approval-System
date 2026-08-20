@@ -150,10 +150,7 @@ export const getApplicationById = async (req, res) => {
   }
 };
 
-<<<<<<< HEAD
 // Re-evaluate application against any specific RuleSet Version (enhanced with full comparison)
-=======
->>>>>>> main
 export const evaluateApplicationUnderVersion = async (req, res) => {
   try {
     const { id, targetVersion } = req.params;
@@ -215,13 +212,11 @@ export const evaluateApplicationUnderVersion = async (req, res) => {
       : decisionChanged ? 'MEDIUM'
       : 'LOW';
 
-    // Stats
     const rulesPassed = newScorecard.filter(r => r.passed).length;
     const rulesFailed = newScorecard.filter(r => !r.passed).length;
 
     res.json({
       success: true,
-<<<<<<< HEAD
       message: `Re-evaluation under RuleSet v${targetVersion} completed. Original decision under v${application.ruleSetVersion} remains immutable.`,
       comparison: {
         applicationId: application.applicationId,
@@ -229,20 +224,16 @@ export const evaluateApplicationUnderVersion = async (req, res) => {
         applicantId: application.applicantId,
         loanAmount: application.requestedLoanAmount,
         tenureMonths: application.requestedTenureMonths,
+        originalRecord: {
+          evaluatedVersion: `v${application.ruleSetVersion}`,
+          decision: application.status
+        },
         before: {
           version: application.ruleSetVersion,
           decision: application.status,
           scorecard: originalScorecard,
           evaluationResult: application.evaluationResult,
           derivedMetrics: application.derivedMetrics
-=======
-      message: `Re-evaluation under RuleSet Version v${targetVersion} completed`,
-      comparison: {
-        applicationId: application.applicationId,
-        originalRecord: {
-          evaluatedVersion: `v${application.ruleSetVersion}`,
-          decision: application.status
->>>>>>> main
         },
         after: {
           version: targetRuleSet.version,
