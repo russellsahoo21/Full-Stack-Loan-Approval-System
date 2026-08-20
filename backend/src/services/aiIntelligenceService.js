@@ -71,9 +71,9 @@ export const processCopilotQuery = async ({ message, persona = 'OFFICER', contex
     return {
       reply: `### 📊 Portfolio Risk & Segment Exposure Analysis
 - **Total Active Portfolio**: ₹4.82 Crores across 50 applications.
-- **Near-Prime Asset-Rich Segment (` + `E-01)`**: 62% of pending exceptions. Historical default rate is only **2.9%** (Safe for batch fast-track).
+- **Near-Prime Asset-Rich Segment (E-01)**: 62% of pending exceptions. Historical default rate is only **2.9%** (Safe for batch fast-track).
 - **High Leverage Sector**: IT & Self-Employed services represent 28% of exception queue.
-- **Recommended Action**: Fast-track Group A candidates in ` + `E-01 to clear 80% of backlog while focusing manual investigation on Group C thin-buffer files.`,
+- **Recommended Action**: Fast-track Group A candidates in E-01 to clear 80% of backlog while focusing manual investigation on Group C thin-buffer files.`,
       suggestions: ['Execute Fast-Track Group A', 'Run Macro Stress Test', 'Inspect High-Exposure Cases'],
       cardType: 'PORTFOLIO_CONCENTRATION',
       cardData: {
