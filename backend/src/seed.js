@@ -8,6 +8,7 @@ import { ApplicantProfile } from './models/ApplicantProfile.js';
 import { LoanApplication } from './models/LoanApplication.js';
 import { AuditLog } from './models/AuditLog.js';
 import { runBRE } from './bre/engine.js';
+import { KNOWN_BUREAU_PROFILES } from './services/bureauService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,6 +62,7 @@ const seedData = async () => {
     const ruleSetV1 = await RuleSet.create({
       version: 1,
       isActive: true,
+      status: 'ACTIVE',
       createdReason: 'Initial baseline NBFC lending policy (v1)',
       createdBy: admin.name,
       rules: [
@@ -80,20 +82,20 @@ const seedData = async () => {
           operator: '<=',
           threshold: 50,
           actionOnFail: 'EXCEPTION',
-          mitigatingFactors: ['Mutual Fund Assets >= ₹200,000', 'Low LTI ratio']
+          mitigatingFactors: ['Liquid Assets >= 40% of loan', 'Positive salary trend >= 10%']
         },
         {
           ruleCode: 'R003',
-          description: 'Minimum Monthly Income',
+          description: 'Minimum Monthly Declared Income',
           parameter: 'monthlyIncome',
           operator: '>=',
           threshold: 30000,
           actionOnFail: 'HARD_REJECT',
-          mitigatingFactors: ['Co-applicant income']
+          mitigatingFactors: ['Co-applicant Income']
         },
         {
           ruleCode: 'R004',
-          description: 'No Delinquency / Write-offs',
+          description: 'Zero Active Write-Offs / Defaults',
           parameter: 'writeOffs',
           operator: '==',
           threshold: 0,
@@ -102,16 +104,16 @@ const seedData = async () => {
         },
         {
           ruleCode: 'R005',
-          description: 'Maximum Cheque Bounces',
+          description: 'Max Permissible Cheque Bounces (6M)',
           parameter: 'bounceCount',
           operator: '<=',
           threshold: 2,
           actionOnFail: 'HARD_REJECT',
-          mitigatingFactors: []
+          mitigatingFactors: ['AMB >= 3x EMI']
         },
         {
           ruleCode: 'R006',
-          description: 'Minimum Age',
+          description: 'Minimum Applicant Age',
           parameter: 'age',
           operator: '>=',
           threshold: 21,
@@ -123,123 +125,93 @@ const seedData = async () => {
 
     console.log('RuleSet v1 seeded and set as active!');
 
-    // Seed Applicant Profiles
-    const profile1 = await ApplicantProfile.create({
-      applicantId: 'APP001',
-      name: 'Rahul Sharma',
-      panNumber: 'ABCDE1234F',
-      aadhaarNumber: '987654321098',
-      age: 29,
-      employmentType: 'Salaried',
-      declaredMonthlyIncome: 80000,
-      existingEMI: 15000,
-      cibilScore: 745,
-      scoreCategory: 'Prime (High Quality)',
-      activeLoans: 2,
-      dpd: 0,
-      writeOffs: 0,
-      defaults: 0,
-      avgMonthlyBalance: 55000,
-      monthlyCredits: 80000,
-      bounceCount: 0,
-      lastYearIncome: 850000,
-      currentYearIncome: 960000,
-      mutualFunds: 250000,
-      savings: 75000,
-      kycStatus: 'VERIFIED_NSDL_UIDAI'
-    });
+    // Seed all 50 Applicant Profiles
+    const createdProfiles = [];
+    for (const p of KNOWN_BUREAU_PROFILES) {
+      const prof = await ApplicantProfile.create({
+        applicantId: p.applicantId,
+        name: p.name,
+        panNumber: p.panNumber,
+        aadhaarNumber: p.aadhaarNumber,
+        age: p.age,
+        employmentType: p.employmentType,
+        declaredMonthlyIncome: p.declaredMonthlyIncome,
+        existingEMI: p.existingEMI,
+        cibilScore: p.cibilScore,
+        scoreCategory: p.scoreCategory,
+        activeLoans: p.activeLoans,
+        dpd: p.dpd,
+        writeOffs: p.writeOffs,
+        defaults: p.writeOffs,
+        avgMonthlyBalance: p.avgMonthlyBalance,
+        monthlyCredits: p.monthlyCredits,
+        bounceCount: p.bounceCount,
+        lastYearIncome: p.lastYearIncome,
+        currentYearIncome: p.currentYearIncome,
+        mutualFunds: p.mutualFunds,
+        savings: p.savings,
+        kycStatus: p.kycStatus
+      });
+      createdProfiles.push(prof);
+    }
 
-    const profile2 = await ApplicantProfile.create({
-      applicantId: 'APP002',
-      name: 'Priya Patel',
-      panNumber: 'FGHIJ5678K',
-      aadhaarNumber: '876543210987',
-      age: 33,
-      employmentType: 'Salaried',
-      declaredMonthlyIncome: 95000,
-      existingEMI: 28000,
-      cibilScore: 720,
-      scoreCategory: 'Near-Prime (Asset-Rich)',
-      activeLoans: 2,
-      dpd: 0,
-      writeOffs: 0,
-      defaults: 0,
-      avgMonthlyBalance: 65000,
-      monthlyCredits: 95000,
-      bounceCount: 1,
-      lastYearIncome: 1050000,
-      currentYearIncome: 1180000,
-      mutualFunds: 600000,
-      savings: 120000,
-      kycStatus: 'VERIFIED_NSDL_UIDAI'
-    });
+    console.log(`Seeded ${createdProfiles.length} Applicant Profiles into MongoDB Atlas.`);
 
-    const profile3 = await ApplicantProfile.create({
-      applicantId: 'APP003',
-      name: 'Amit Kumar',
-      panNumber: 'KLMNO9012P',
-      aadhaarNumber: '765432109876',
-      age: 27,
-      employmentType: 'Salaried',
-      declaredMonthlyIncome: 55000,
-      existingEMI: 12000,
-      cibilScore: 640,
-      scoreCategory: 'Sub-Prime (High Risk)',
-      activeLoans: 3,
-      dpd: 30,
-      writeOffs: 1,
-      defaults: 0,
-      avgMonthlyBalance: 14000,
-      monthlyCredits: 45000,
-      bounceCount: 4,
-      lastYearIncome: 650000,
-      currentYearIncome: 720000,
-      mutualFunds: 0,
-      savings: 8000,
-      kycStatus: 'VERIFIED_NSDL_UIDAI'
-    });
-
-    console.log('Applicant Profiles seeded: APP001 (Rahul), APP002 (Priya), APP003 (Amit)');
-
-    // Run BRE & Seed Initial Loan Applications
-    const appsToSeed = [
-      { profile: profile1, amount: 800000, tenure: 60, appId: 'LOAN1001' },
-      { profile: profile2, amount: 1200000, tenure: 60, appId: 'LOAN1002' },
-      { profile: profile3, amount: 500000, tenure: 36, appId: 'LOAN1003' },
-    ];
-
-    for (const item of appsToSeed) {
-      const breRes = runBRE(item.profile, item.amount, item.tenure, ruleSetV1);
+    // Run BRE and generate full 50-application underwriting portfolio
+    let appIndex = 1001;
+    for (let i = 0; i < createdProfiles.length; i++) {
+      const prof = createdProfiles[i];
+      const appId = `LOAN${appIndex++}`;
       
-      const app = await LoanApplication.create({
-        applicationId: item.appId,
-        applicantId: item.profile.applicantId,
-        requestedLoanAmount: item.amount,
-        requestedTenureMonths: item.tenure,
+      // Dynamic loan requests based on income
+      const loanAmount = Math.max(300000, Math.round((prof.declaredMonthlyIncome * (prof.cibilScore > 740 ? 10 : 8)) / 50000) * 50000);
+      const tenure = 60;
+
+      const breRes = runBRE(prof, loanAmount, tenure, ruleSetV1);
+
+      // Create application
+      await LoanApplication.create({
+        applicationId: appId,
+        applicantId: prof.applicantId,
+        panNumber: prof.panNumber,
+        aadhaarNumber: prof.aadhaarNumber,
+        requestedLoanAmount: loanAmount,
+        requestedTenureMonths: tenure,
         status: breRes.decision,
         ruleSetVersion: ruleSetV1.version,
         derivedMetrics: breRes.derivedMetrics,
         scorecard: breRes.scorecard,
         evaluationResult: breRes.evaluationResult,
+        bureauSnapshot: {
+          panNumber: prof.panNumber,
+          cibilScore: prof.cibilScore,
+          scoreCategory: prof.scoreCategory,
+          kycStatus: prof.kycStatus,
+          writeOffs: prof.writeOffs,
+          bounceCount: prof.bounceCount,
+          mutualFunds: prof.mutualFunds,
+          savings: prof.savings,
+          bureauSource: 'CIBIL / Experian Gateway'
+        },
         exceptionDetails: breRes.exceptionDetails
       });
 
       await AuditLog.create({
-        applicationId: item.appId,
-        applicantId: item.profile.applicantId,
+        applicationId: appId,
+        applicantId: prof.applicantId,
         ruleSetVersion: ruleSetV1.version,
         decision: breRes.decision,
-        evaluatedBy: 'System (Automated BRE)',
+        evaluatedBy: 'System (Automated BRE Engine)',
         evaluationSnapshot: {
           scorecard: breRes.scorecard,
           derivedMetrics: breRes.derivedMetrics,
           evaluationResult: breRes.evaluationResult
-        }
+        },
+        timestamp: new Date()
       });
     }
 
-    console.log('Initial Loan Applications seeded: LOAN1001 (APPROVED), LOAN1002 (EXCEPTION_REQUIRED), LOAN1003 (REJECTED)');
-
+    console.log(`Seeded 50 Loan Applications with full scorecards and audit logs!`);
     console.log('✅ Seeding complete! Database is fully populated.');
     process.exit(0);
   } catch (error) {

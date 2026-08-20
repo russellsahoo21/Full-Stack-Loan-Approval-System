@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   FileText, List, Settings, ShieldAlert, LayoutDashboard, 
   ChevronDown, User, LogOut, Menu, Sparkles, History, 
-  Database, Layers, Check 
+  Database, Layers, Check, BrainCircuit 
 } from 'lucide-react';
 import { useAuth, ROLES, ROLE_LABELS } from '../context/AuthContext';
 import clsx from 'clsx';
@@ -32,6 +32,12 @@ const MainLayout = () => {
       path: '/applications/new', 
       icon: FileText, 
       roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT] 
+    },
+    { 
+      name: 'Exception Intelligence', 
+      path: '/exception-intelligence', 
+      icon: BrainCircuit, 
+      roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
     },
     { 
       name: 'Exception Queue', 

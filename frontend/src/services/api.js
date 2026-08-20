@@ -131,6 +131,34 @@ export const bureauApi = {
     const res = await api.get('/bureau/demo-profiles');
     return res.data;
   },
+  getAll: async () => {
+    const res = await api.get('/bureau/all');
+    return res.data;
+  },
+};
+
+// Credit Exception Intelligence & Case Clustering Endpoints
+export const exceptionsApi = {
+  getClusters: async () => {
+    const res = await api.get('/exceptions/clusters');
+    return res.data;
+  },
+  getL2Queue: async () => {
+    const res = await api.get('/exceptions/l2-queue');
+    return res.data;
+  },
+  getArchetypes: async () => {
+    const res = await api.get('/exceptions/archetypes');
+    return res.data;
+  },
+  batchDecision: async (payload) => {
+    const res = await api.post('/exceptions/batch-decision', payload);
+    return res.data;
+  },
+  escalateToL2: async (id, payload) => {
+    const res = await api.post(`/exceptions/escalate/${encodeURIComponent(id)}`, payload);
+    return res.data;
+  },
 };
 
 // Health Check Endpoint

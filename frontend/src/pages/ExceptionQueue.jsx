@@ -6,7 +6,7 @@ import {
   User, FileText, RefreshCw, AlertCircle, Sparkles, Check 
 } from 'lucide-react';
 import { formatCurrency } from '../utils/masking';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { applicationApi } from '../services/api';
 import clsx from 'clsx';
 
@@ -92,7 +92,15 @@ const ExceptionQueue = () => {
             </p>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              to="/exception-intelligence"
+              className="px-3.5 py-2 bg-gradient-to-r from-purple-950/60 to-indigo-950/60 border border-purple-500/40 hover:border-purple-400 text-purple-200 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+              <span>AI Cluster Intelligence View</span>
+            </Link>
+
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
               <input 
@@ -100,7 +108,7 @@ const ExceptionQueue = () => {
                 placeholder="Search by ID or Applicant..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-[#111] border border-[#333] text-white rounded-lg text-xs focus:ring-1 focus:ring-white focus:border-white outline-none w-64 placeholder-gray-500 transition-all"
+                className="pl-9 pr-4 py-2 bg-[#111] border border-[#333] text-white rounded-lg text-xs focus:ring-1 focus:ring-white focus:border-white outline-none w-56 placeholder-gray-500 transition-all"
               />
             </div>
             <button 

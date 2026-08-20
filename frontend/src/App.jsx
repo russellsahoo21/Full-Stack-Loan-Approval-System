@@ -7,6 +7,7 @@ import ApplicationsList from './pages/ApplicationsList';
 import NewApplication from './pages/NewApplication';
 import ApplicationDetail from './pages/ApplicationDetail';
 import ExceptionQueue from './pages/ExceptionQueue';
+import ExceptionIntelligenceStudio from './pages/ExceptionIntelligenceStudio';
 import RuleConfigurator from './pages/RuleConfigurator';
 import RuleVersionTimeline from './pages/RuleVersionTimeline';
 import DecisionComparison from './pages/DecisionComparison';
@@ -83,6 +84,15 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.L1, ROLES.L2]}>
                   <ExceptionQueue />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/exception-intelligence" 
+              element={
+                <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.L1, ROLES.L2]}>
+                  <ExceptionIntelligenceStudio />
                 </ProtectedRoute>
               } 
             />

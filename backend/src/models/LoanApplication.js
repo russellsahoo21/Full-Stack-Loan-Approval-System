@@ -56,6 +56,18 @@ const loanApplicationSchema = new mongoose.Schema({
     savings: { type: Number },
     bureauSource: { type: String }
   },
+
+  // Credit Exception Intelligence & Case Clustering Fields
+  exceptionProfileCode: { type: String }, // 'E-01', 'E-02', etc.
+  triageGroup: { type: String, enum: ['GROUP_A', 'GROUP_B', 'GROUP_C'], default: 'GROUP_B' },
+  escalatedToL2: { type: Boolean, default: false },
+  escalatedBy: { type: String },
+  escalatedAt: { type: Date },
+  escalationNotes: { type: String },
+  l2Decision: { type: String },
+  l2DecisionBy: { type: String },
+  l2DecisionAt: { type: Date },
+  l2OfficerNotes: { type: String },
   
   exceptionDetails: {
     deviations: [{ type: String }],
