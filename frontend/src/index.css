@@ -71,3 +71,69 @@
 *, *::before, *::after {
   border-radius: 0px !important;
 }
+
+/* ==========================================================================
+   STRICT MONOCHROME WHITE PALETTE: Text, Icons, Bars, Accents
+   ========================================================================== */
+
+/* Universal SVG / Icon white enforcement */
+svg, svg * {
+  color: #ffffff !important;
+}
+svg:not([fill="none"]) {
+  fill: #ffffff !important;
+}
+
+/* Map all colored text classes to pure / crisp white shades */
+[class*="text-purple-"],
+[class*="text-indigo-"],
+[class*="text-blue-"],
+[class*="text-emerald-"],
+[class*="text-green-"],
+[class*="text-amber-"],
+[class*="text-orange-"],
+[class*="text-yellow-"],
+[class*="text-red-"],
+[class*="text-rose-"],
+[class*="text-teal-"],
+[class*="text-cyan-"] {
+  color: #ffffff !important;
+}
+
+/* Map colored badge and pill backgrounds to elegant monochrome white */
+[class*="bg-purple-"],
+[class*="bg-indigo-"],
+[class*="bg-blue-"],
+[class*="bg-emerald-"],
+[class*="bg-green-"],
+[class*="bg-amber-"],
+[class*="bg-orange-"],
+[class*="bg-yellow-"],
+[class*="bg-red-"],
+[class*="bg-rose-"],
+[class*="bg-teal-"],
+[class*="bg-cyan-"] {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* Accent bars, meter bars, and progress indicators */
+input[type="range"] {
+  accent-color: #ffffff !important;
+}
+
+/* Gradients transformed to clean monochrome white/gray */
+[class*="from-purple-"],
+[class*="from-indigo-"],
+[class*="from-blue-"],
+[class*="from-emerald-"],
+[class*="from-green-"],
+[class*="from-amber-"],
+[class*="from-orange-"],
+[class*="from-red-"],
+[class*="from-rose-"] {
+  --tw-gradient-from: #ffffff !important;
+  --tw-gradient-to: #a3a3a3 !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
