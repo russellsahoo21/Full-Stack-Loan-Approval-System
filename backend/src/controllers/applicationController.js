@@ -351,6 +351,20 @@ export const handleExceptionDecision = async (req, res) => {
 
     await application.save();
 
+    // Save Immutable Audit Log for Officer Exception Override
+    await AuditLog.create({
+      applicationId: application.applicationId,
+      applicantId: application.applicantId,
+      ruleSetVersion: application.ruleSetVersion || 1,
+      decision: newStatus,
+      evaluatedBy: req.user?.name ? `${req.user.name} (${req.user.role || 'Officer'})` : 'Credit Officer (Manual Override)',
+      evaluationSnapshot: {
+        officerNotes: officerNotes || 'Reviewed by Credit Officer',
+        scorecard: application.scorecard,
+        derivedMetrics: application.derivedMetrics
+      }
+    });
+
     res.json({
       success: true,
       message: `Exception application updated to ${newStatus}`,

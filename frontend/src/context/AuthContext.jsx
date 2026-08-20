@@ -45,6 +45,17 @@ export const DEMO_USERS = {
 
 const AuthContext = createContext(null);
 
+export const isValidEmailDomain = (email) => {
+  if (!email || typeof email !== 'string') return false;
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(email)) return false;
+  const parts = email.split('@');
+  if (parts.length !== 2) return false;
+  const domainParts = parts[1].split('.');
+  const tld = domainParts[domainParts.length - 1];
+  return Boolean(tld && tld.length >= 2);
+};
+
 export const AuthProvider = ({ children }) => {
   // Initialize from LocalStorage or default demo token
   const [token, setToken] = useState(() => localStorage.getItem('bre_token') || 'demo-offline-token');
@@ -86,6 +97,15 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     setIsLoading(true);
+
+    if (!credentials.email || !isValidEmailDomain(credentials.email)) {
+      setIsLoading(false);
+      return { 
+        success: false, 
+        message: 'Please enter a valid email address with a domain (e.g. gmail.com, outlook.com, nbfc.com).' 
+      };
+    }
+
     try {
       const response = await authApi.login(credentials);
       if (response.success && response.token) {
@@ -97,15 +117,14 @@ export const AuthProvider = ({ children }) => {
         message: response.message || 'Invalid email or password. Please check your credentials.' 
       };
     } catch (error) {
-      // Fallback for offline testing
-      const message = error.response?.data?.message || 'Backend connection issue. Logging in with demo credentials.';
-      const fallbackUser = {
-        name: credentials.email ? credentials.email.split('@')[0] : 'Demo User',
-        email: credentials.email || 'admin@nbfc.com',
-        role: ROLES.ADMIN,
+      const serverMessage = error.response?.data?.message;
+      if (serverMessage) {
+        return { success: false, message: serverMessage };
+      }
+      return { 
+        success: false, 
+        message: 'Account not found or password incorrect. Please sign up if you do not have an account.' 
       };
-      saveAuthSession('demo-offline-token', fallbackUser);
-      return { success: true, user: fallbackUser, fallback: true, message };
     } finally {
       setIsLoading(false);
     }
@@ -113,6 +132,15 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     setIsLoading(true);
+
+    if (!userData.email || !isValidEmailDomain(userData.email)) {
+      setIsLoading(false);
+      return { 
+        success: false, 
+        message: 'Please enter a valid email address with a domain (e.g. gmail.com, outlook.com, nbfc.com).' 
+      };
+    }
+
     try {
       const response = await authApi.register(userData);
       if (response.success && response.token) {
