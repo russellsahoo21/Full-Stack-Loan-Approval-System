@@ -95,7 +95,7 @@ const NewApplication = () => {
   const [panInput, setPanInput] = useState('ABCPA1431F');
   const [aadhaarInput, setAadhaarInput] = useState('987654321098');
   const [isFetchingBureau, setIsFetchingBureau] = useState(false);
-  const [bureauVerified, setBureauVerified] = useState(true);
+  const [bureauVerified, setBureauVerified] = useState(false);
 
   // Core Application Form Data
   const [formData, setFormData] = useState({
@@ -139,11 +139,11 @@ const NewApplication = () => {
 
         if (bureauRes?.success && bureauRes.data) {
           setBureauProfiles(bureauRes.data);
-          // Set first profile if available
           if (bureauRes.data.length > 0) {
             const first = bureauRes.data[0];
             setSelectedProfileId(first.applicantId);
-            populateProfile(first);
+            setPanInput(first.panNumber || '');
+            setAadhaarInput(first.aadhaarNumber || '');
           }
         }
       } catch (err) {
@@ -204,9 +204,11 @@ const NewApplication = () => {
         populateProfile(res.data);
       } else {
         setErrorMessage(res.message || 'Applicant not found in Mock Bureau Database.');
+        setBureauVerified(false);
       }
     } catch (err) {
       setErrorMessage(err.response?.data?.message || 'Failed to connect to Bureau Gateway.');
+      setBureauVerified(false);
     } finally {
       setIsFetchingBureau(false);
     }
@@ -215,11 +217,11 @@ const NewApplication = () => {
   // Handle Quick Dropdown Selector change
   const handleDropdownSelect = (appId) => {
     setSelectedProfileId(appId);
+    setBureauVerified(false);
     const found = bureauProfiles.find(p => p.applicantId === appId);
     if (found) {
-      populateProfile(found);
-    } else {
-      handleFetchBureauData(appId);
+      setPanInput(found.panNumber || '');
+      setAadhaarInput(found.aadhaarNumber || '');
     }
   };
 
@@ -442,9 +444,8 @@ const NewApplication = () => {
                     maxLength={10}
                     value={panInput}
                     onChange={(e) => {
-                      const val = e.target.value.toUpperCase();
-                      setPanInput(val);
-                      if (val.length === 10) handleFetchBureauData(val);
+                      setPanInput(e.target.value.toUpperCase());
+                      setBureauVerified(false);
                     }}
                     placeholder="e.g. ABCPA1431F"
                     className="w-full bg-[#181818] border border-[#333] focus:border-white text-white px-3.5 py-2.5 text-xs font-mono uppercase focus:outline-none transition-all font-bold"
@@ -460,9 +461,8 @@ const NewApplication = () => {
                     maxLength={12}
                     value={aadhaarInput}
                     onChange={(e) => {
-                      const val = e.target.value;
-                      setAadhaarInput(val);
-                      if (val.length === 12) handleFetchBureauData(val);
+                      setAadhaarInput(e.target.value);
+                      setBureauVerified(false);
                     }}
                     placeholder="e.g. 987654321098"
                     className="w-full bg-[#181818] border border-[#333] focus:border-white text-white px-3.5 py-2.5 text-xs font-mono focus:outline-none transition-all font-bold"
@@ -482,9 +482,22 @@ const NewApplication = () => {
                 </button>
               </div>
 
+              {/* Unverified Placeholder State */}
+              {!bureauVerified && (
+                <div className="bg-[#141414] border border-[#333] p-5 text-center space-y-2">
+                  <div className="flex items-center justify-center gap-2 text-gray-400 text-xs font-semibold">
+                    <Fingerprint className="w-4 h-4 text-white" />
+                    <span>KYC & Bureau Telemetry Dossier Pending Verification</span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 max-w-md mx-auto">
+                    Click the <span className="text-white font-bold">"Fetch & Verify Bureau Records"</span> button above to retrieve verified NSDL/UIDAI identity and CIBIL score telemetry.
+                  </p>
+                </div>
+              )}
+
               {/* Verified Telemetry Dossier Display */}
               {bureauVerified && (
-                <div className="bg-[#141414] border border-white/20 p-4 space-y-3">
+                <div className="bg-[#141414] border border-white/20 p-4 space-y-3 animate-in fade-in duration-300">
                   <div className="flex items-center justify-between pb-2 border-b border-[#222]">
                     <div className="flex items-center gap-2">
                       <ShieldCheck className="w-4 h-4 text-white" />
