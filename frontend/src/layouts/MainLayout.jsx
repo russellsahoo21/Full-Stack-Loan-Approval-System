@@ -1,31 +1,84 @@
-import React from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import { FileText, List, Settings, ShieldAlert, LayoutDashboard, ChevronDown, User, LogOut, Menu } from 'lucide-react';
-import { useAuth, ROLES } from '../context/AuthContext';
+import React, { useState } from 'react';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { 
+  FileText, List, Settings, ShieldAlert, LayoutDashboard, 
+  ChevronDown, User, LogOut, Menu, Sparkles, History, 
+  Database, Layers, Check 
+} from 'lucide-react';
+import { useAuth, ROLES, ROLE_LABELS } from '../context/AuthContext';
 import clsx from 'clsx';
 
 const MainLayout = () => {
-  const { currentRole, switchRole, user } = useAuth();
+  const { currentRole, switchRole, user, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: [ROLES.RM, ROLES.L1, ROLES.L2, ROLES.ADMIN] },
-    { name: 'New App', path: '/applications/new', icon: FileText, roles: [ROLES.RM, ROLES.L1, ROLES.L2, ROLES.ADMIN] },
-    { name: 'Exceptions', path: '/exceptions', icon: List, roles: [ROLES.L1, ROLES.L2, ROLES.ADMIN] },
-    { name: 'BRE Studio', path: '/admin/rules', icon: Settings, roles: [ROLES.ADMIN] },
+    { 
+      name: 'Dashboard', 
+      path: '/dashboard', 
+      icon: LayoutDashboard, 
+      roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT] 
+    },
+    { 
+      name: 'All Applications', 
+      path: '/applications', 
+      icon: Layers, 
+      roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT] 
+    },
+    { 
+      name: 'New Application', 
+      path: '/applications/new', 
+      icon: FileText, 
+      roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT] 
+    },
+    { 
+      name: 'Exception Queue', 
+      path: '/exceptions', 
+      icon: List, 
+      roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
+    },
+    { 
+      name: 'BRE Studio', 
+      path: '/admin/rules', 
+      icon: Settings, 
+      roles: [ROLES.ADMIN] 
+    },
+    { 
+      name: 'Synthetic Sandbox', 
+      path: '/synthetic-sandbox', 
+      icon: Sparkles, 
+      roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
+    },
+    { 
+      name: 'Audit Trail', 
+      path: '/audit-logs', 
+      icon: History, 
+      roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
+    },
   ];
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <div className="min-h-screen flex bg-[#0a0a0a] text-white">
-      {/* Sidebar */}
-      <aside className="w-64 bg-[#111] border-r border-[#333] flex flex-col hidden md:flex sticky top-0 h-screen">
-        <div className="h-16 flex items-center px-6 border-b border-[#333]">
-          <ShieldAlert className="text-white w-8 h-8 mr-2" />
-          <span className="font-bold text-xl tracking-tight text-white">Smart Underwriting</span>
-        </div>
+      {/* Sidebar Desktop */}
+      <aside className="w-64 bg-[#111] border-r border-[#2a2a2a] flex flex-col hidden md:flex sticky top-0 h-screen z-30">
+        <Link to="/dashboard" className="h-16 flex items-center px-6 border-b border-[#2a2a2a] gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center text-white shadow-[0_0_15px_rgba(255,255,255,0.05)]">
+            <ShieldAlert className="w-5 h-5 text-white" />
+          </div>
+          <span className="font-bold text-base tracking-tight text-white">Smart Underwrite</span>
+        </Link>
         
-        <nav className="flex-1 py-6 px-4 space-y-2">
-          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4 px-2">Menu</div>
+        <nav className="flex-1 py-6 px-3 space-y-1.5 overflow-y-auto">
+          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 px-3">
+            Core Modules
+          </div>
           {navLinks.map((link) => {
             const Icon = link.icon;
             const isActive = location.pathname === link.path;
@@ -36,26 +89,36 @@ const MainLayout = () => {
                 key={link.path} 
                 to={link.path} 
                 className={clsx(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-md font-medium text-sm transition-colors",
-                  isActive ? "bg-white text-black" : "text-gray-400 hover:bg-[#222] hover:text-white"
+                  "flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition-all",
+                  isActive 
+                    ? "bg-white text-black shadow-sm font-bold" 
+                    : "text-gray-400 hover:bg-[#1c1c1c] hover:text-white"
                 )}
               >
-                <Icon className="w-4 h-4" /> {link.name}
+                <Icon className="w-4 h-4 shrink-0" />
+                <span>{link.name}</span>
               </Link>
             );
           })}
         </nav>
         
-        <div className="p-4 border-t border-[#333]">
-          <div className="flex items-center gap-3 px-2 py-2">
-            <div className="w-8 h-8 bg-[#222] rounded-full flex items-center justify-center text-white">
-              <User className="w-4 h-4" />
+        {/* User Card */}
+        <div className="p-3 border-t border-[#2a2a2a] bg-[#0e0e0e]">
+          <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-[#161616] border border-[#2a2a2a]">
+            <div className="w-8 h-8 bg-[#252525] border border-[#333] rounded-full flex items-center justify-center text-white shrink-0">
+              <User className="w-4 h-4 text-gray-300" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{user.name}</p>
-              <p className="text-xs text-gray-500 truncate">{currentRole}</p>
+              <p className="text-xs font-bold text-white truncate">{user?.name || 'User'}</p>
+              <p className="text-[10px] text-amber-400 truncate font-mono">{ROLE_LABELS[currentRole] || currentRole}</p>
             </div>
-            <LogOut className="w-4 h-4 text-gray-500 hover:text-white cursor-pointer transition-colors" />
+            <button
+              onClick={handleLogout}
+              title="Logout"
+              className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-[#222] rounded-lg transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </aside>
@@ -63,40 +126,75 @@ const MainLayout = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-h-screen relative">
         {/* Top Navbar */}
-        <header className="h-16 bg-[#111] border-b border-[#333] flex items-center justify-between px-4 sm:px-6 sticky top-0 z-20">
-          <div className="flex items-center md:hidden">
-            <Menu className="w-6 h-6 text-white" />
+        <header className="h-16 bg-[#111] border-b border-[#2a2a2a] flex items-center justify-between px-4 sm:px-8 sticky top-0 z-20 backdrop-blur-md bg-opacity-95">
+          <div className="flex items-center gap-3 md:hidden">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 hover:bg-[#222] rounded-lg text-white"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <span className="font-bold text-sm text-white">Smart Underwriting</span>
           </div>
           
           <div className="flex-1"></div>
           
-          <div className="flex items-center gap-4">
-            {/* Role Switcher */}
+          <div className="flex items-center gap-3">
+            {/* Instant Demo Role Switcher */}
             <div className="relative group">
-              <button className="flex items-center gap-2 bg-[#222] border border-[#333] px-3 py-1.5 rounded-md text-sm font-medium text-white hover:bg-[#333] transition-colors">
-                Role: {currentRole} <ChevronDown className="w-4 h-4 text-gray-400" />
+              <button className="flex items-center gap-2 bg-[#181818] border border-[#333] hover:border-gray-500 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white transition-all">
+                <span className="text-gray-400 font-normal">Active Role:</span>
+                <span className="text-amber-400 font-bold">{ROLE_LABELS[currentRole] || currentRole}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
               </button>
               
-              <div className="absolute right-0 mt-2 w-48 bg-[#111] rounded-md shadow-lg border border-[#333] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                <div className="py-1">
-                  <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Switch Role</div>
-                  {Object.values(ROLES).map(role => (
-                    <button
-                      key={role}
-                      onClick={() => switchRole(role)}
-                      className={clsx(
-                        "w-full text-left px-4 py-2 text-sm transition-colors flex justify-between items-center",
-                        currentRole === role ? "bg-white text-black font-medium" : "text-gray-300 hover:bg-[#222]"
-                      )}
-                    >
-                      {role} {currentRole === role && <span className="text-black">✓</span>}
-                    </button>
-                  ))}
+              <div className="absolute right-0 mt-2 w-56 bg-[#121212] rounded-xl shadow-2xl border border-[#333] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 p-1.5">
+                <div className="px-3 py-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                  Instant Demo Persona
                 </div>
+                {Object.values(ROLES).map(role => (
+                  <button
+                    key={role}
+                    onClick={() => switchRole(role)}
+                    className={clsx(
+                      "w-full text-left px-3 py-2 rounded-lg text-xs transition-all flex justify-between items-center",
+                      currentRole === role ? "bg-white text-black font-bold" : "text-gray-300 hover:bg-[#1e1e1e]"
+                    )}
+                  >
+                    <span>{ROLE_LABELS[role] || role}</span>
+                    {currentRole === role && <Check className="w-3.5 h-3.5 text-black" />}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
         </header>
+
+        {/* Mobile Dropdown Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-[#111] border-b border-[#333] p-4 space-y-2 animate-in slide-in-from-top duration-300">
+            {navLinks.map((link) => {
+              const Icon = link.icon;
+              const isActive = location.pathname === link.path;
+              if (!link.roles.includes(currentRole)) return null;
+
+              return (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={clsx(
+                    "flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium",
+                    isActive ? "bg-white text-black font-bold" : "text-gray-400"
+                  )}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{link.name}</span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
         
         {/* Page Content */}
         <main className="flex-1 p-4 sm:p-8 overflow-x-hidden">
@@ -104,13 +202,13 @@ const MainLayout = () => {
         </main>
         
         {/* Footer */}
-        <footer className="bg-[#111] border-t border-[#333] py-4 px-6 mt-auto">
+        <footer className="bg-[#111] border-t border-[#2a2a2a] py-4 px-8 mt-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-gray-500">
-            <p>© 2026 Smart Underwriting NBFC. All rights reserved.</p>
+            <p>© 2026 Smart Underwriting NBFC Engine. Regulatory Compliant.</p>
             <div className="flex gap-4">
-              <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-              <a href="#" className="hover:text-white transition-colors">Compliance</a>
+              <Link to="/audit-logs" className="hover:text-white transition-colors">Audit Trail</Link>
+              <Link to="/admin/rules" className="hover:text-white transition-colors">BRE Policy Studio</Link>
+              <Link to="/synthetic-sandbox" className="hover:text-white transition-colors">Telemetry Sandbox</Link>
             </div>
           </div>
         </footer>

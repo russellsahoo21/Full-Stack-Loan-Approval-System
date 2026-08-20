@@ -1,177 +1,313 @@
-import React, { useState } from 'react';
-import { Settings, Save, Play, RefreshCw, AlertTriangle, Info, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  Settings, Save, Play, RefreshCw, AlertTriangle, 
+  Info, CheckCircle2, History, Plus, Trash2, Sparkles, ShieldAlert 
+} from 'lucide-react';
+import { rulesApi } from '../services/api';
 import clsx from 'clsx';
 
-const INITIAL_RULES = [
-  { id: 'R01', name: 'Minimum CIBIL Score', description: 'Minimum credit score required for straight-through processing.', variable: 'cibilScore', min: 300, max: 900, step: 10, value: 700, unit: 'points' },
-  { id: 'R02', name: 'Maximum FOIR', description: 'Fixed Obligations to Income Ratio cap.', variable: 'foir', min: 10, max: 80, step: 1, value: 50, unit: '%' },
-  { id: 'R03', name: 'Avg Monthly Balance (6M)', description: 'Minimum average bank balance maintained over 6 months.', variable: 'amb', min: 10000, max: 200000, step: 5000, value: 50000, unit: '₹' },
-  { id: 'R04', name: 'Max Cheque Bounces (6M)', description: 'Maximum allowed inward return limit in the last 6 months.', variable: 'bounces6M', min: 0, max: 5, step: 1, value: 1, unit: 'bounces' },
+const DEFAULT_RULE_TEMPLATES = [
+  {
+    ruleCode: 'R001',
+    description: 'Minimum CIBIL Score',
+    parameter: 'cibilScore',
+    operator: '>=',
+    threshold: 700,
+    actionOnFail: 'HARD_REJECT',
+    mitigatingFactors: ['Assets >= ₹2,000,000'],
+  },
+  {
+    ruleCode: 'R002',
+    description: 'Maximum Permissible FOIR',
+    parameter: 'foir',
+    operator: '<=',
+    threshold: 50,
+    actionOnFail: 'EXCEPTION',
+    mitigatingFactors: ['Mutual Fund Assets >= ₹200,000', 'Low LTI ratio'],
+  },
+  {
+    ruleCode: 'R003',
+    description: 'Minimum Monthly Income',
+    parameter: 'monthlyIncome',
+    operator: '>=',
+    threshold: 30000,
+    actionOnFail: 'HARD_REJECT',
+    mitigatingFactors: ['Co-applicant income'],
+  },
+  {
+    ruleCode: 'R004',
+    description: 'No Delinquency / Write-offs',
+    parameter: 'writeOffs',
+    operator: '==',
+    threshold: 0,
+    actionOnFail: 'HARD_REJECT',
+    mitigatingFactors: [],
+  },
+  {
+    ruleCode: 'R005',
+    description: 'Maximum Cheque Bounces',
+    parameter: 'bounceCount',
+    operator: '<=',
+    threshold: 2,
+    actionOnFail: 'HARD_REJECT',
+    mitigatingFactors: [],
+  },
+  {
+    ruleCode: 'R006',
+    description: 'Minimum Age',
+    parameter: 'age',
+    operator: '>=',
+    threshold: 21,
+    actionOnFail: 'HARD_REJECT',
+    mitigatingFactors: [],
+  },
 ];
 
 const RuleConfigurator = () => {
-  const [rules, setRules] = useState(INITIAL_RULES);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [activeRuleSet, setActiveRuleSet] = useState(null);
+  const [rules, setRules] = useState(DEFAULT_RULE_TEMPLATES);
+  const [versionHistory, setVersionHistory] = useState([]);
+  const [createdReason, setCreatedReason] = useState('Policy adjustment: tightened risk parameters');
+  
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [deploySuccessMsg, setDeploySuccessMsg] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleSliderChange = (id, newValue) => {
-    setSaveSuccess(false);
-    setRules(prev => prev.map(rule => rule.id === id ? { ...rule, value: Number(newValue) } : rule));
+  const fetchRulesData = async () => {
+    setIsLoading(true);
+    setErrorMessage('');
+    try {
+      // 1. Get active rule set
+      const activeRes = await rulesApi.getActive();
+      if (activeRes.success && activeRes.data) {
+        setActiveRuleSet(activeRes.data);
+        setRules(activeRes.data.rules || DEFAULT_RULE_TEMPLATES);
+      }
+
+      // 2. Get version history
+      try {
+        const versionsRes = await rulesApi.getVersions();
+        if (versionsRes.success) {
+          setVersionHistory(versionsRes.data || []);
+        }
+      } catch (e) {
+        console.warn('Could not fetch rule versions history:', e);
+      }
+    } catch (err) {
+      console.warn('Using default rule templates:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSaveAndReEvaluate = () => {
-    setIsSaving(true);
-    setSaveSuccess(false);
-    
-    setTimeout(() => {
-      setIsSaving(false);
-      setSaveSuccess(true);
-      
-      setIsSimulating(true);
-      setTimeout(() => {
-        setIsSimulating(false);
-      }, 1500);
-      
-    }, 1000);
+  useEffect(() => {
+    fetchRulesData();
+  }, []);
+
+  const handleThresholdChange = (index, val) => {
+    setDeploySuccessMsg('');
+    const updated = [...rules];
+    updated[index].threshold = Number(val);
+    setRules(updated);
+  };
+
+  const handleActionChange = (index, newAction) => {
+    setDeploySuccessMsg('');
+    const updated = [...rules];
+    updated[index].actionOnFail = newAction;
+    setRules(updated);
+  };
+
+  const handleDeployNewVersion = async () => {
+    if (!createdReason) {
+      alert('Please provide a policy update justification reason.');
+      return;
+    }
+
+    setIsDeploying(true);
+    setDeploySuccessMsg('');
+    setErrorMessage('');
+
+    try {
+      const res = await rulesApi.createVersion({
+        rules,
+        createdReason,
+      });
+
+      if (res.success && res.data) {
+        setDeploySuccessMsg(`Version v${res.data.version} activated live! Zero backend code changes required.`);
+        await fetchRulesData();
+      }
+    } catch (err) {
+      setErrorMessage(err.response?.data?.message || 'Failed to deploy new rule set version');
+    } finally {
+      setIsDeploying(false);
+    }
   };
 
   return (
-    <div className="max-w-5xl mx-auto pb-12">
-      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="max-w-6xl mx-auto pb-16 animate-in fade-in duration-500 space-y-8">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-            <Settings className="w-8 h-8 text-white" />
-            BRE Configurator Studio
-          </h1>
-          <p className="text-gray-400 mt-2">Adjust core policy thresholds in real-time. Changes affect new applications immediately.</p>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          {saveSuccess && !isSaving && (
-            <span className="text-sm font-medium text-green-500 flex items-center gap-1 animate-in fade-in">
-              <CheckCircle2 className="w-4 h-4" /> Rules Saved
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-2">
+              <Settings className="w-7 h-7 text-white" />
+              <span>Configurable BRE Studio</span>
+            </h1>
+            <span className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2.5 py-1 rounded-full font-mono font-bold">
+              v{activeRuleSet?.version || '1'} (Active Live)
             </span>
-          )}
-          <button 
-            onClick={handleSaveAndReEvaluate}
-            disabled={isSaving || isSimulating}
-            className="flex items-center gap-2 px-6 py-2.5 bg-white text-black rounded-md font-semibold hover:bg-gray-200 transition-colors shadow-sm disabled:opacity-70"
+          </div>
+          <p className="text-gray-400 mt-1 text-sm">
+            Adjust core policy thresholds, severity knockouts, and mitigating rules in real time.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchRulesData}
+            disabled={isLoading}
+            className="p-2.5 bg-[#161616] border border-[#333] hover:border-gray-500 rounded-xl text-gray-400 hover:text-white transition-all"
           >
-            {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {isSaving ? 'Deploying...' : 'Deploy & Re-Evaluate'}
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+
+          <button
+            onClick={handleDeployNewVersion}
+            disabled={isDeploying}
+            className="px-5 py-2.5 bg-white text-black font-bold rounded-xl text-sm hover:bg-gray-200 transition-all flex items-center gap-2 shadow-[0_0_25px_rgba(255,255,255,0.15)] disabled:opacity-50"
+          >
+            {isDeploying ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            <span>{isDeploying ? 'Activating Policy...' : 'Deploy & Activate Version'}</span>
           </button>
         </div>
       </div>
 
-      <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-8 flex items-start gap-3 text-yellow-500">
-        <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-        <div className="text-sm">
-          <strong className="font-semibold block mb-1">Live Environment Warning</strong>
-          Modifying these thresholds will immediately impact the Straight-Through Processing (STP) rates and exception volumes. Ensure Risk Management approval before deploying.
+      {/* Success Notification */}
+      {deploySuccessMsg && (
+        <div className="bg-green-500/10 border border-green-500/30 text-green-400 p-4 rounded-xl text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+          <CheckCircle2 className="w-4 h-4" />
+          <span>{deploySuccessMsg}</span>
         </div>
+      )}
+
+      {errorMessage && (
+        <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-4 rounded-xl text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+          <ShieldAlert className="w-4 h-4" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Live Policy Deployment Banner */}
+      <div className="bg-[#111] border border-[#333] rounded-xl p-5 shadow-lg space-y-3">
+        <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">
+          Policy Changelog & Audit Reason for Next Version (e.g. v{(activeRuleSet?.version || 1) + 1})
+        </label>
+        <input
+          type="text"
+          value={createdReason}
+          onChange={(e) => setCreatedReason(e.target.value)}
+          placeholder="State reason for policy modification (e.g., Q3 risk tightening, adjusting minimum CIBIL cutoff)..."
+          className="w-full bg-[#181818] border border-[#333] focus:border-white text-white rounded-lg px-4 py-2.5 text-xs focus:outline-none transition-all placeholder-gray-600"
+        />
       </div>
 
-      <div className="bg-[#111] rounded-xl shadow-sm border border-[#333] overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#333] bg-[#1a1a1a] flex items-center justify-between">
-          <h3 className="font-semibold text-white text-lg">Active Risk Rules</h3>
-          <span className="text-xs font-semibold bg-[#333] text-gray-300 px-2 py-1 rounded border border-[#444]">v2.4.1 (Live)</span>
+      {/* Rule Sliders & Rule Grid */}
+      <div className="bg-[#111] rounded-xl border border-[#333] overflow-hidden shadow-lg">
+        <div className="px-6 py-4 border-b border-[#333] bg-[#161616] flex items-center justify-between">
+          <h3 className="font-semibold text-white text-sm">Active Underwriting Rules</h3>
+          <span className="text-xs text-gray-400">Zero-code policy agility</span>
         </div>
-        
-        <div className="divide-y divide-[#333]">
-          {rules.map((rule) => (
-            <div key={rule.id} className="p-6 transition-colors hover:bg-[#1a1a1a] flex flex-col md:flex-row md:items-center gap-8">
-              
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-mono bg-[#333] border border-[#444] text-gray-300 px-1.5 py-0.5 rounded">{rule.id}</span>
-                  <h4 className="font-semibold text-white">{rule.name}</h4>
-                </div>
-                <p className="text-sm text-gray-400 mb-2">{rule.description}</p>
-                <div className="flex items-center gap-1 text-xs text-gray-500 font-mono">
-                  <Info className="w-3.5 h-3.5" />
-                  Engine Var: {rule.variable}
-                </div>
-              </div>
 
-              <div className="flex-1 max-w-md bg-[#0a0a0a] p-4 rounded-lg border border-[#333] relative">
-                {isSimulating && (
-                  <div className="absolute inset-0 bg-[#0a0a0a]/80 backdrop-blur-[1px] flex items-center justify-center rounded-lg z-10">
-                    <RefreshCw className="w-5 h-5 text-white animate-spin" />
+        <div className="divide-y divide-[#222]">
+          {rules.map((rule, idx) => (
+            <div key={idx} className="p-6 hover:bg-[#161616] transition-colors flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 bg-[#222] border border-[#333] text-gray-300 font-mono text-[11px] font-bold rounded">
+                    {rule.ruleCode}
+                  </span>
+                  <h4 className="font-bold text-white text-sm">{rule.description}</h4>
+                </div>
+                <div className="text-xs text-gray-400">
+                  Parameter: <code className="text-amber-400 font-mono">{rule.parameter}</code> {rule.operator} <span className="text-white font-bold">{rule.threshold}</span>
+                </div>
+                {rule.mitigatingFactors?.length > 0 && (
+                  <div className="text-[11px] text-gray-500 mt-1">
+                    Mitigating factors: {rule.mitigatingFactors.join(', ')}
                   </div>
                 )}
-                
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-sm font-medium text-gray-400">Threshold Value</span>
-                  <div className="bg-white/10 text-white font-bold px-3 py-1 rounded border border-[#444] text-lg">
-                    {rule.unit === '₹' ? '₹' : ''}
-                    {rule.value}
-                    {rule.unit !== '₹' ? ` ${rule.unit}` : ''}
-                  </div>
-                </div>
-                
-                <input 
-                  type="range"
-                  min={rule.min}
-                  max={rule.max}
-                  step={rule.step}
-                  value={rule.value}
-                  onChange={(e) => handleSliderChange(rule.id, e.target.value)}
-                  className="w-full h-2 bg-[#333] rounded-lg appearance-none cursor-pointer focus:outline-none"
-                  style={{
-                    accentColor: '#ffffff'
-                  }}
-                />
-                <div className="flex justify-between mt-2 text-xs font-medium text-gray-500">
-                  <span>{rule.unit === '₹' ? '₹' : ''}{rule.min}</span>
-                  <span>{rule.unit === '₹' ? '₹' : ''}{rule.max}</span>
-                </div>
               </div>
 
+              {/* Threshold Controls */}
+              <div className="w-full md:w-80 bg-[#181818] border border-[#2a2a2a] p-4 rounded-xl space-y-3">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-400 font-medium">Threshold Value:</span>
+                  <input
+                    type="number"
+                    value={rule.threshold}
+                    onChange={(e) => handleThresholdChange(idx, e.target.value)}
+                    className="w-24 bg-[#111] border border-[#333] text-white text-right px-2 py-1 rounded text-sm font-bold font-mono focus:outline-none"
+                  />
+                </div>
+
+                <div className="flex justify-between items-center text-xs pt-1">
+                  <span className="text-gray-400">Action on Fail:</span>
+                  <select
+                    value={rule.actionOnFail}
+                    onChange={(e) => handleActionChange(idx, e.target.value)}
+                    className="bg-[#111] border border-[#333] text-white text-xs rounded px-2 py-1 focus:outline-none"
+                  >
+                    <option value="HARD_REJECT">HARD_REJECT</option>
+                    <option value="EXCEPTION">EXCEPTION</option>
+                  </select>
+                </div>
+              </div>
             </div>
           ))}
         </div>
       </div>
-      
-      <div className={clsx(
-        "mt-8 transition-all duration-500 transform",
-        isSimulating ? "opacity-0 translate-y-4" : saveSuccess ? "opacity-100 translate-y-0" : "opacity-0 hidden"
-      )}>
-        <div className="bg-[#111] p-6 rounded-xl border border-green-500/30 flex items-start gap-4">
-          <div className="bg-green-500/10 p-3 rounded-full text-green-500 shrink-0 border border-green-500/20">
-            <Play className="w-6 h-6 ml-0.5" />
+
+      {/* Historical Versions Drawer */}
+      {versionHistory.length > 0 && (
+        <div className="bg-[#111] rounded-xl border border-[#333] p-6 shadow-lg space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-[#222]">
+            <History className="w-4 h-4 text-gray-400" />
+            <h3 className="font-semibold text-white text-sm">Policy Version Changelog History</h3>
           </div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-white text-lg mb-1">Impact Simulation Complete</h3>
-            <p className="text-sm text-gray-400 mb-4">Re-evaluation of the last 1,000 applications using the new thresholds yielded the following projected impact:</p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-[#0a0a0a] border border-[#333] rounded-lg p-3">
-                <div className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">STP Approval Rate</div>
-                <div className="flex items-end gap-2">
-                  <span className="text-xl font-bold text-white">42.5%</span>
-                  <span className="text-sm text-red-500 font-medium pb-0.5">↓ 2.1%</span>
+
+          <div className="space-y-3">
+            {versionHistory.map((v) => (
+              <div 
+                key={v.version}
+                className={clsx(
+                  "p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs",
+                  v.isActive ? "bg-amber-500/5 border-amber-500/30" : "bg-[#181818] border-[#2a2a2a]"
+                )}
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-white font-mono">RuleSet Version v{v.version}</span>
+                    {v.isActive && (
+                      <span className="px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-full text-[10px] font-bold">
+                        ACTIVE LIVE
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-gray-400 mt-1">{v.createdReason}</p>
+                </div>
+
+                <div className="text-right text-[11px] text-gray-500 shrink-0">
+                  <div>Created by {v.createdBy || 'POLICY_ADMIN'}</div>
+                  <div className="font-mono">{new Date(v.createdAt).toLocaleDateString()}</div>
                 </div>
               </div>
-              <div className="bg-[#0a0a0a] border border-[#333] rounded-lg p-3">
-                <div className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">L1 Exceptions</div>
-                <div className="flex items-end gap-2">
-                  <span className="text-xl font-bold text-white">28.0%</span>
-                  <span className="text-sm text-green-500 font-medium pb-0.5">↑ 1.5%</span>
-                </div>
-              </div>
-              <div className="bg-[#0a0a0a] border border-[#333] rounded-lg p-3">
-                <div className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Hard Rejects</div>
-                <div className="flex items-end gap-2">
-                  <span className="text-xl font-bold text-white">29.5%</span>
-                  <span className="text-sm text-gray-500 font-medium pb-0.5">+ 0.6%</span>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
-      </div>
-      
+      )}
     </div>
   );
 };

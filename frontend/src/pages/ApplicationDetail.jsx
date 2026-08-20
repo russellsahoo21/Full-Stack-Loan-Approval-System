@@ -1,43 +1,25 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   CheckCircle, XCircle, AlertTriangle, ArrowLeft, 
   IndianRupee, Percent, Calendar, ShieldCheck, 
-  HelpCircle, ChevronDown, Check, X, AlertCircle 
+  HelpCircle, RefreshCw, Check, X, AlertCircle, 
+  Sparkles, History, User, MessageSquare, Scale, ArrowRight 
 } from 'lucide-react';
-import { formatCurrency } from '../utils/masking';
+import { formatCurrency, maskPAN, maskMobile } from '../utils/masking';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { useAuth, ROLES } from '../context/AuthContext';
+import { applicationApi, rulesApi } from '../services/api';
 import clsx from 'clsx';
 
-const MOCK_DECISION = {
-  id: 'APP-987654',
-  status: 'EXCEPTION_REQUIRED',
-  applicantName: 'Rahul Sharma',
-  terms: {
-    eligibleAmount: 1200000,
-    interestRate: 14.5,
-    tenure: 36,
-    emi: 41285
-  },
-  riskGrade: 'B',
-  riskScore: 72,
-  rules: [
-    { id: 'R01', name: 'Minimum CIBIL Score', variable: 'cibilScore', observed: 710, threshold: '>= 700', status: 'PASS', severity: 'LOW', reason: '' },
-    { id: 'R02', name: 'Maximum FOIR %', variable: 'foir', observed: '45%', threshold: '<= 50%', status: 'PASS', severity: 'MEDIUM', reason: '' },
-    { id: 'R03', name: 'Avg Monthly Balance (6M)', variable: 'amb', observed: '₹85,000', threshold: '>= ₹50,000', status: 'PASS', severity: 'LOW', reason: '' },
-    { id: 'R04', name: 'Recent Cheque Bounces', variable: 'bounces6M', observed: 2, threshold: '<= 1', status: 'EXCEPTION', severity: 'HIGH', reason: 'EXC-BNC-02: Exceeds allowed bounce limit' },
-    { id: 'R05', name: 'Business Vintage (Years)', variable: 'vintage', observed: 3.5, threshold: '>= 3', status: 'PASS', severity: 'MEDIUM', reason: '' },
-  ]
-};
-
-const RiskGauge = ({ score }) => {
+const RiskGauge = ({ grade = 'Grade A', score = 85 }) => {
   const data = [
     { name: 'Score', value: score },
     { name: 'Remainder', value: 100 - score },
   ];
   const COLORS = [
-    score >= 80 ? '#22c55e' : score >= 60 ? '#f59e0b' : '#ef4444', 
-    '#333'
+    score >= 75 ? '#22c55e' : score >= 55 ? '#f59e0b' : '#ef4444', 
+    '#222'
   ];
 
   return (
@@ -62,9 +44,9 @@ const RiskGauge = ({ score }) => {
           </Pie>
         </PieChart>
       </ResponsiveContainer>
-      <div className="absolute top-[50%] flex flex-col items-center">
-        <span className="text-2xl font-bold text-white leading-none">{score}</span>
-        <span className="text-xs text-gray-500 uppercase tracking-wider mt-1">Score</span>
+      <div className="absolute top-[45%] flex flex-col items-center">
+        <span className="text-xl font-extrabold text-white leading-none">{score}</span>
+        <span className="text-[10px] text-gray-400 uppercase tracking-wider mt-1">{grade.split(' ')[0]}</span>
       </div>
     </div>
   );
@@ -73,185 +55,457 @@ const RiskGauge = ({ score }) => {
 const ApplicationDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const data = MOCK_DECISION; 
+  const { user, currentRole } = useAuth();
+
+  const [application, setApplication] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [ruleVersions, setRuleVersions] = useState([]);
   
-  const statusConfig = {
-    APPROVED: {
-      color: 'bg-green-500/10 border-green-500/20 text-green-500',
-      icon: <CheckCircle className="w-8 h-8 text-green-500" />,
-      title: 'Straight-Through Approved',
-      desc: 'Application passed all BRE rules successfully.'
-    },
-    REJECTED: {
-      color: 'bg-red-500/10 border-red-500/20 text-red-500',
-      icon: <XCircle className="w-8 h-8 text-red-500" />,
-      title: 'Hard Rejected',
-      desc: 'Application failed critical knock-out rules.'
-    },
-    EXCEPTION_REQUIRED: {
-      color: 'bg-yellow-500/10 border-yellow-500/20 text-yellow-500',
-      icon: <AlertTriangle className="w-8 h-8 text-yellow-500" />,
-      title: 'Exception Required (L1 Escalate)',
-      desc: 'Application failed non-critical rules and requires manual override.'
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // Exception Decision Controls
+  const [overrideNotes, setOverrideNotes] = useState('');
+  const [isProcessingAction, setIsProcessingAction] = useState(false);
+
+  // Version Simulation State
+  const [selectedSimVersion, setSelectedSimVersion] = useState(1);
+  const [simulationResult, setSimulationResult] = useState(null);
+  const [isSimulating, setIsSimulating] = useState(false);
+
+  const fetchApplicationDetails = async () => {
+    setIsLoading(true);
+    setErrorMessage('');
+    try {
+      const res = await applicationApi.getById(id);
+      if (res.success && res.data) {
+        setApplication(res.data);
+        setProfile(res.applicantProfile);
+        setAuditLogs(res.auditLogs || []);
+      } else {
+        setErrorMessage(res.message || 'Application not found');
+      }
+
+      // Fetch rule versions for comparison tool
+      try {
+        const vRes = await rulesApi.getVersions();
+        if (vRes.success && vRes.data) {
+          setRuleVersions(vRes.data);
+          if (vRes.data.length > 0) {
+            setSelectedSimVersion(vRes.data[0].version);
+          }
+        }
+      } catch (e) {
+        // public version fallback
+      }
+    } catch (err) {
+      setErrorMessage(err.response?.data?.message || 'Failed to load application data');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const currentStatus = statusConfig[data.status] || statusConfig.EXCEPTION_REQUIRED;
+  useEffect(() => {
+    fetchApplicationDetails();
+  }, [id]);
+
+  const handleExceptionDecision = async (action) => {
+    if (!overrideNotes) {
+      alert('Please enter justification / compliance notes before submitting.');
+      return;
+    }
+    setIsProcessingAction(true);
+    try {
+      const res = await applicationApi.exceptionDecision(id, {
+        action,
+        officerNotes: overrideNotes,
+      });
+      if (res.success) {
+        setOverrideNotes('');
+        await fetchApplicationDetails();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to process exception decision');
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  const handleRunVersionSimulation = async () => {
+    setIsSimulating(true);
+    try {
+      const res = await applicationApi.evaluateVersion(id, selectedSimVersion);
+      if (res.success) {
+        setSimulationResult(res.comparison);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to evaluate under selected version');
+    } finally {
+      setIsSimulating(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="py-20 flex flex-col items-center justify-center text-gray-400 gap-3">
+        <RefreshCw className="w-8 h-8 animate-spin text-white" />
+        <p className="text-sm">Fetching immutable application record from database...</p>
+      </div>
+    );
+  }
+
+  if (errorMessage || !application) {
+    return (
+      <div className="max-w-lg mx-auto py-16 text-center space-y-4">
+        <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto" />
+        <h2 className="text-xl font-bold text-white">Application Record Not Found</h2>
+        <p className="text-sm text-gray-400">{errorMessage || 'The requested application ID does not exist.'}</p>
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="px-4 py-2 bg-white text-black font-semibold rounded-lg text-sm"
+        >
+          Return to Dashboard
+        </button>
+      </div>
+    );
+  }
+
+  const statusConfig = {
+    APPROVED: {
+      color: 'bg-green-500/10 border-green-500/30 text-green-400',
+      icon: <CheckCircle className="w-8 h-8 text-green-400" />,
+      title: 'Straight-Through Processing (STP) Approved',
+      desc: 'Application satisfied all automated credit policy rules under the active rule set.'
+    },
+    APPROVED_VIA_EXCEPTION: {
+      color: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
+      icon: <CheckCircle className="w-8 h-8 text-emerald-400" />,
+      title: 'Approved Via Credit Officer Exception Override',
+      desc: 'Manual approval confirmed with audited officer justification & mitigating factors.'
+    },
+    REJECTED_VIA_EXCEPTION: {
+      color: 'bg-red-500/10 border-red-500/30 text-red-400',
+      icon: <XCircle className="w-8 h-8 text-red-400" />,
+      title: 'Rejected After Exception Review',
+      desc: 'Credit Officer reviewed exception deviations and upheld rejection.'
+    },
+    REJECTED: {
+      color: 'bg-red-500/10 border-red-500/30 text-red-400',
+      icon: <XCircle className="w-8 h-8 text-red-400" />,
+      title: 'Hard Policy Knockout (Rejected)',
+      desc: 'Application failed one or more critical knock-out risk rules.'
+    },
+    EXCEPTION_REQUIRED: {
+      color: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400',
+      icon: <AlertTriangle className="w-8 h-8 text-yellow-400" />,
+      title: 'Exception Required (Manual Underwriter Escalation)',
+      desc: 'Application requires manual review by Credit Approver due to non-critical rule deviations.'
+    }
+  };
+
+  const currentStatus = statusConfig[application.status] || statusConfig.EXCEPTION_REQUIRED;
+  const isOfficerOrAdmin = [ROLES.ADMIN, ROLES.L1, ROLES.L2].includes(currentRole);
+
+  const riskScore = application.evaluationResult?.riskGrade?.includes('Grade A') ? 88 
+    : application.evaluationResult?.riskGrade?.includes('Grade B') ? 68 
+    : 42;
 
   return (
-    <div className="max-w-7xl mx-auto pb-12 animate-in fade-in duration-500">
-      
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+    <div className="max-w-7xl mx-auto pb-16 animate-in fade-in duration-500 space-y-8">
+      {/* Top Breadcrumb & Action Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
           <button 
             onClick={() => navigate(-1)}
-            className="p-2 hover:bg-[#222] rounded-full transition-colors text-gray-400"
+            className="p-2 bg-[#161616] hover:bg-[#222] border border-[#333] rounded-lg transition-colors text-gray-400 hover:text-white"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-white">Application {data.id}</h1>
-            <p className="text-sm text-gray-500">{data.applicantName}</p>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-white tracking-tight">
+                Application {application.applicationId}
+              </h1>
+              <span className="text-xs bg-[#222] border border-[#444] text-gray-300 font-mono px-2 py-0.5 rounded">
+                v{application.ruleSetVersion} Policy
+              </span>
+            </div>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Applicant: <span className="text-white font-medium">{profile?.name || application.applicantId}</span> ({application.applicantId})
+            </p>
           </div>
         </div>
-        <div className="flex gap-3">
-          {data.status === 'EXCEPTION_REQUIRED' && (
-            <button className="px-4 py-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 font-medium rounded-md hover:bg-yellow-500/20 transition-colors shadow-sm text-sm">
-              Escalate to L2
-            </button>
-          )}
-          <button className="px-4 py-2 bg-[#222] border border-[#333] text-white font-medium rounded-md hover:bg-[#333] transition-colors shadow-sm text-sm">
-            View Original Documents
-          </button>
+
+        <div className="flex items-center gap-2">
+          <Link
+            to="/applications"
+            className="px-3.5 py-2 bg-[#1a1a1a] hover:bg-[#222] border border-[#333] text-gray-300 hover:text-white rounded-lg text-xs font-semibold transition-all"
+          >
+            All Applications
+          </Link>
+          <Link
+            to="/exceptions"
+            className="px-3.5 py-2 bg-[#1a1a1a] hover:bg-[#222] border border-[#333] text-gray-300 hover:text-white rounded-lg text-xs font-semibold transition-all"
+          >
+            Exception Queue
+          </Link>
         </div>
       </div>
 
-      <div className={clsx("rounded-xl p-6 mb-8 border flex flex-col sm:flex-row items-start gap-4", currentStatus.color)}>
-        <div className="bg-[#111] p-2 rounded-full border border-[#333]">
+      {/* Decision Summary Card */}
+      <div className={clsx("rounded-xl p-6 border flex flex-col sm:flex-row items-start gap-4 shadow-lg", currentStatus.color)}>
+        <div className="bg-[#111] p-2.5 rounded-xl border border-white/10 shrink-0">
           {currentStatus.icon}
         </div>
-        <div>
-          <h2 className="text-xl font-bold mb-1 text-white">{currentStatus.title}</h2>
-          <p className="text-sm opacity-90">{currentStatus.desc}</p>
+        <div className="flex-1">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+            <h2 className="text-lg font-bold text-white">{currentStatus.title}</h2>
+            <span className="text-[11px] font-mono uppercase bg-black/40 px-2.5 py-1 rounded border border-white/10">
+              Evaluated under RuleSet v{application.ruleSetVersion}
+            </span>
+          </div>
+          <p className="text-xs opacity-90 leading-relaxed">{currentStatus.desc}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-        <div className="lg:col-span-2 bg-[#111] rounded-xl border border-[#333] overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#333] bg-[#1a1a1a] flex items-center gap-2">
-            <IndianRupee className="w-5 h-5 text-gray-400" />
-            <h3 className="font-semibold text-white">Calculated Loan Terms</h3>
-          </div>
-          <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div>
-              <p className="text-sm text-gray-400 mb-1">Eligible Amount</p>
-              <p className="text-2xl font-bold text-white">{formatCurrency(data.terms.eligibleAmount)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400 mb-1">Interest Rate</p>
-              <div className="flex items-center gap-1">
-                <p className="text-2xl font-bold text-white">{data.terms.interestRate}</p>
-                <Percent className="w-4 h-4 text-gray-500" />
-              </div>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400 mb-1">Tenure</p>
-              <div className="flex items-center gap-1">
-                <p className="text-2xl font-bold text-white">{data.terms.tenure}</p>
-                <span className="text-sm text-gray-500 font-medium">months</span>
-              </div>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400 mb-1">Est. EMI</p>
-              <p className="text-2xl font-bold text-white">{formatCurrency(data.terms.emi)}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-[#111] rounded-xl border border-[#333] overflow-hidden flex flex-col">
-          <div className="px-6 py-4 border-b border-[#333] bg-[#1a1a1a] flex items-center justify-between">
+      {/* Calculated Loan Terms & Risk Assessment Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Calculated Terms */}
+        <div className="lg:col-span-2 bg-[#111] rounded-xl border border-[#333] overflow-hidden shadow-lg">
+          <div className="px-6 py-4 border-b border-[#333] bg-[#161616] flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-gray-400" />
-              <h3 className="font-semibold text-white">Risk Assessment</h3>
+              <IndianRupee className="w-4 h-4 text-amber-400" />
+              <h3 className="font-semibold text-white text-sm">Calculated Loan Terms & Eligibility</h3>
             </div>
-            <div className={clsx(
-              "w-8 h-8 rounded flex items-center justify-center font-bold text-lg",
-              data.riskGrade === 'A' || data.riskGrade === 'B' ? 'bg-green-500/20 text-green-500' : 'bg-yellow-500/20 text-yellow-500'
-            )}>
-              {data.riskGrade}
+            <span className="text-[11px] text-gray-400">Automated Pricing Engine</span>
+          </div>
+
+          <div className="p-6 grid grid-cols-2 sm:grid-cols-4 gap-6">
+            <div>
+              <p className="text-xs text-gray-400 mb-1">Requested Amount</p>
+              <p className="text-xl font-bold text-white">{formatCurrency(application.requestedLoanAmount)}</p>
+              <p className="text-[10px] text-gray-500 mt-0.5">Applicant ask</p>
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-400 mb-1">Max Eligibility</p>
+              <p className="text-xl font-bold text-emerald-400">
+                {formatCurrency(application.evaluationResult?.maxEligibleLoanAmount || application.requestedLoanAmount)}
+              </p>
+              <p className="text-[10px] text-gray-500 mt-0.5">Based on 50% max FOIR</p>
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-400 mb-1">Interest Rate</p>
+              <div className="flex items-center gap-1">
+                <p className="text-xl font-bold text-white">
+                  {application.evaluationResult?.interestRatePercent || 11.5}%
+                </p>
+              </div>
+              <p className="text-[10px] text-gray-500 mt-0.5">Risk-adjusted</p>
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-400 mb-1">Proposed EMI</p>
+              <p className="text-xl font-bold text-white">
+                {formatCurrency(application.derivedMetrics?.proposedEMI || 0)}
+              </p>
+              <p className="text-[10px] text-gray-500 mt-0.5">{application.requestedTenureMonths} mo tenure</p>
             </div>
           </div>
-          <div className="p-6 flex-1 flex items-center justify-center">
-            <RiskGauge score={data.riskScore} />
+
+          {/* Derived Metrics Footer */}
+          <div className="bg-[#141414] px-6 py-3 border-t border-[#222] grid grid-cols-3 gap-4 text-xs">
+            <div>
+              <span className="text-gray-500">Calculated FOIR: </span>
+              <span className="text-white font-bold">{application.derivedMetrics?.foir || 0}%</span>
+            </div>
+            <div>
+              <span className="text-gray-500">Loan-to-Income: </span>
+              <span className="text-white font-bold">{application.derivedMetrics?.lti || 0}x</span>
+            </div>
+            <div>
+              <span className="text-gray-500">Income Trend: </span>
+              <span className="text-white font-bold">
+                {application.derivedMetrics?.incomeTrendPercent > 0 ? '+' : ''}
+                {application.derivedMetrics?.incomeTrendPercent || 0}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Risk Assessment Card */}
+        <div className="bg-[#111] rounded-xl border border-[#333] overflow-hidden shadow-lg flex flex-col justify-between">
+          <div className="px-6 py-4 border-b border-[#333] bg-[#161616] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-blue-400" />
+              <h3 className="font-semibold text-white text-sm">Risk Assessment Band</h3>
+            </div>
+            <span className="text-xs font-bold px-2 py-0.5 rounded bg-white/10 text-white font-mono">
+              {application.evaluationResult?.riskGrade || 'Grade A'}
+            </span>
+          </div>
+
+          <div className="p-4 flex flex-col items-center justify-center flex-1">
+            <RiskGauge 
+              grade={application.evaluationResult?.riskGrade || 'Grade A'} 
+              score={riskScore} 
+            />
+            <div className="text-center mt-2">
+              <p className="text-xs font-semibold text-gray-300">
+                {application.evaluationResult?.riskGrade || 'Grade A (Low Risk)'}
+              </p>
+              <p className="text-[11px] text-gray-500">CIBIL: {profile?.cibilScore || 735} • DPD: {profile?.dpd || 0}</p>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-[#111] rounded-xl border border-[#333] overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#333] flex items-center justify-between">
-          <div>
-            <h3 className="font-semibold text-white text-lg">Rule Engine Explainability</h3>
-            <p className="text-sm text-gray-400 mt-1">Detailed breakdown of policy evaluation rules for this application.</p>
+      {/* Explainability Badges */}
+      {application.evaluationResult?.whySummaryBadges?.length > 0 && (
+        <div className="bg-[#111] border border-[#333] rounded-xl p-5 shadow-lg">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>BRE Explainability Badges (Underwriting Rationale)</span>
           </div>
-          <HelpCircle className="w-5 h-5 text-gray-500 hidden sm:block" />
+          <div className="flex flex-wrap gap-2">
+            {application.evaluationResult.whySummaryBadges.map((badge, idx) => (
+              <span 
+                key={idx}
+                className="px-3 py-1.5 bg-[#1a1a1a] border border-[#333] text-gray-200 text-xs font-medium rounded-lg"
+              >
+                {badge}
+              </span>
+            ))}
+          </div>
         </div>
-        
+      )}
+
+      {/* Exception Review & Decision Box (For Pending Exceptions) */}
+      {application.status === 'EXCEPTION_REQUIRED' && isOfficerOrAdmin && (
+        <div className="bg-[#111] border-2 border-yellow-500/40 rounded-xl p-6 shadow-2xl space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-[#333]">
+            <AlertTriangle className="w-5 h-5 text-yellow-400" />
+            <h3 className="text-base font-bold text-white">Credit Officer Exception Override Action</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div className="bg-red-500/10 border border-red-500/20 p-3.5 rounded-lg">
+              <h4 className="font-semibold text-red-400 mb-1">Triggered Policy Deviations:</h4>
+              <ul className="list-disc list-inside space-y-0.5 text-gray-300">
+                {application.exceptionDetails?.deviations?.length > 0 
+                  ? application.exceptionDetails.deviations.map((d, i) => <li key={i}>{d}</li>)
+                  : <li>Non-critical rule failed threshold</li>}
+              </ul>
+            </div>
+
+            <div className="bg-emerald-500/10 border border-emerald-500/20 p-3.5 rounded-lg">
+              <h4 className="font-semibold text-emerald-400 mb-1">Identified Mitigating Factors:</h4>
+              <ul className="list-disc list-inside space-y-0.5 text-gray-300">
+                {application.exceptionDetails?.mitigatingFactors?.length > 0
+                  ? application.exceptionDetails.mitigatingFactors.map((m, i) => <li key={i}>{m}</li>)
+                  : <li>High asset buffer declared</li>}
+              </ul>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+              Approver Justification & Compliance Notes (Mandatory for Audit Log)
+            </label>
+            <textarea
+              rows="3"
+              value={overrideNotes}
+              onChange={(e) => setOverrideNotes(e.target.value)}
+              placeholder="e.g. CIBIL score is 680 (below 700 limit), but applicant holds ₹5 Lakhs in Mutual Funds. Approved via exception."
+              className="w-full bg-[#181818] border border-[#333] focus:border-white text-white rounded-lg p-3 text-xs focus:outline-none transition-all placeholder-gray-600"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={() => handleExceptionDecision('REJECT')}
+              disabled={isProcessingAction || !overrideNotes}
+              className="flex-1 py-2.5 px-4 bg-transparent border border-red-500/50 hover:bg-red-500/10 text-red-400 font-bold rounded-lg text-xs transition-all disabled:opacity-40"
+            >
+              {isProcessingAction ? 'Processing...' : 'Reject Application'}
+            </button>
+            <button
+              onClick={() => handleExceptionDecision('APPROVE')}
+              disabled={isProcessingAction || !overrideNotes}
+              className="flex-1 py-2.5 px-4 bg-white hover:bg-gray-200 text-black font-bold rounded-lg text-xs transition-all shadow-md disabled:opacity-40"
+            >
+              {isProcessingAction ? 'Processing...' : 'Approve Override via Exception'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Rule Engine Explainability Scorecard Table */}
+      <div className="bg-[#111] rounded-xl border border-[#333] overflow-hidden shadow-lg">
+        <div className="px-6 py-4 border-b border-[#333] bg-[#161616] flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-white text-sm">Rule Engine Scorecard (Live Execution Breakdown)</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Observed applicant telemetry against active policy parameters.</p>
+          </div>
+          <HelpCircle className="w-4 h-4 text-gray-500" />
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[#1a1a1a] text-gray-400 text-xs uppercase tracking-wider">
-                <th className="px-6 py-4 font-medium border-b border-[#333]">Rule Name</th>
-                <th className="px-6 py-4 font-medium border-b border-[#333]">Observed Value</th>
-                <th className="px-6 py-4 font-medium border-b border-[#333]">Configured Threshold</th>
-                <th className="px-6 py-4 font-medium border-b border-[#333]">Severity</th>
-                <th className="px-6 py-4 font-medium border-b border-[#333]">Status</th>
-                <th className="px-6 py-4 font-medium border-b border-[#333]">Reason / Code</th>
+                <th className="px-6 py-3.5 font-medium border-b border-[#333]">Rule Code</th>
+                <th className="px-6 py-3.5 font-medium border-b border-[#333]">Description</th>
+                <th className="px-6 py-3.5 font-medium border-b border-[#333]">Observed Value</th>
+                <th className="px-6 py-3.5 font-medium border-b border-[#333]">Configured Threshold</th>
+                <th className="px-6 py-3.5 font-medium border-b border-[#333]">Action on Fail</th>
+                <th className="px-6 py-3.5 font-medium border-b border-[#333]">Result</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#222] text-sm">
-              {data.rules.map((rule) => (
-                <tr key={rule.id} className={clsx(
-                  "transition-colors hover:bg-[#1a1a1a]",
-                  rule.status === 'EXCEPTION' && "bg-yellow-500/5"
-                )}>
-                  <td className="px-6 py-4 text-white font-medium">
-                    {rule.name}
-                    <div className="text-xs text-gray-500 font-mono mt-0.5">{rule.id}</div>
+            <tbody className="divide-y divide-[#222] text-xs">
+              {application.scorecard?.map((rule, idx) => (
+                <tr 
+                  key={idx}
+                  className={clsx(
+                    "hover:bg-[#181818] transition-colors",
+                    !rule.passed && rule.actionOnFail === 'EXCEPTION' && "bg-yellow-500/5",
+                    !rule.passed && rule.actionOnFail === 'HARD_REJECT' && "bg-red-500/5"
+                  )}
+                >
+                  <td className="px-6 py-3.5 font-mono text-white font-semibold">
+                    {rule.ruleCode}
                   </td>
-                  <td className="px-6 py-4 font-mono text-gray-300">{rule.observed}</td>
-                  <td className="px-6 py-4 text-gray-400">{rule.threshold}</td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-3.5 text-gray-300 font-medium">
+                    {rule.description}
+                  </td>
+                  <td className="px-6 py-3.5 font-mono text-white">
+                    {rule.actualValue}
+                  </td>
+                  <td className="px-6 py-3.5 text-gray-400 font-mono">
+                    {rule.thresholdRequired}
+                  </td>
+                  <td className="px-6 py-3.5">
                     <span className={clsx(
-                      "text-xs font-medium px-2.5 py-1 rounded",
-                      rule.severity === 'HIGH' ? 'bg-red-500/20 text-red-500' :
-                      rule.severity === 'MEDIUM' ? 'bg-yellow-500/20 text-yellow-500' :
-                      'bg-[#222] text-gray-300'
+                      "text-[10px] font-semibold px-2 py-0.5 rounded",
+                      rule.actionOnFail === 'HARD_REJECT' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'
                     )}>
-                      {rule.severity}
+                      {rule.actionOnFail}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
-                    {rule.status === 'PASS' ? (
-                      <span className="flex items-center gap-1.5 text-green-500 font-medium text-xs px-2.5 py-1 bg-green-500/10 border border-green-500/20 rounded-full w-max">
-                        <Check className="w-3.5 h-3.5" /> PASS
-                      </span>
-                    ) : rule.status === 'FAIL' ? (
-                      <span className="flex items-center gap-1.5 text-red-500 font-medium text-xs px-2.5 py-1 bg-red-500/10 border border-red-500/20 rounded-full w-max">
-                        <X className="w-3.5 h-3.5" /> FAIL
+                  <td className="px-6 py-3.5">
+                    {rule.passed ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-green-500/10 text-green-400 border border-green-500/20 rounded-full font-semibold text-[11px]">
+                        <Check className="w-3 h-3" /> PASS
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1.5 text-yellow-500 font-medium text-xs px-2.5 py-1 bg-yellow-500/10 border border-yellow-500/20 rounded-full w-max">
-                        <AlertCircle className="w-3.5 h-3.5" /> EXCEPTION
+                      <span className={clsx(
+                        "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-semibold text-[11px] border",
+                        rule.actionOnFail === 'HARD_REJECT' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+                      )}>
+                        <X className="w-3 h-3" /> FAIL
                       </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-gray-400">
-                    {rule.reason ? (
-                      <span className="text-xs bg-[#222] text-gray-300 px-2 py-1 rounded font-mono border border-[#333]">
-                        {rule.reason}
-                      </span>
-                    ) : (
-                      <span className="text-gray-600">-</span>
                     )}
                   </td>
                 </tr>
@@ -260,7 +514,113 @@ const ApplicationDetail = () => {
           </table>
         </div>
       </div>
-      
+
+      {/* Policy Agility Tool: Evaluate Under Specific Version */}
+      <div className="bg-[#111] border border-[#333] rounded-xl p-6 shadow-lg space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#222]">
+          <div className="flex items-center gap-2">
+            <Scale className="w-5 h-5 text-indigo-400" />
+            <div>
+              <h3 className="font-bold text-white text-sm">Policy Version Simulator (Agility Demo)</h3>
+              <p className="text-xs text-gray-400">
+                Simulate how this application evaluates under different historical rule versions without altering original records.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedSimVersion}
+              onChange={(e) => setSelectedSimVersion(Number(e.target.value))}
+              className="bg-[#181818] border border-[#333] text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none"
+            >
+              {ruleVersions.map(v => (
+                <option key={v.version} value={v.version}>
+                  RuleSet v{v.version} {v.isActive ? '(Active)' : ''}
+                </option>
+              ))}
+              {ruleVersions.length === 0 && (
+                <>
+                  <option value={1}>RuleSet v1</option>
+                  <option value={2}>RuleSet v2</option>
+                </>
+              )}
+            </select>
+
+            <button
+              onClick={handleRunVersionSimulation}
+              disabled={isSimulating}
+              className="px-3.5 py-1.5 bg-white text-black font-bold rounded-lg text-xs hover:bg-gray-200 transition-all flex items-center gap-1 shadow-md disabled:opacity-50"
+            >
+              {isSimulating ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+              <span>Simulate</span>
+            </button>
+          </div>
+        </div>
+
+        {simulationResult && (
+          <div className="bg-[#181818] border border-indigo-500/30 rounded-xl p-4 animate-in fade-in space-y-3">
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-semibold text-indigo-400">Simulation Comparison Result</span>
+              <span className="text-gray-400 font-mono">Original: v{application.ruleSetVersion} ➔ Simulated: {simulationResult.reEvaluatedRecord?.evaluatedVersion}</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="bg-[#111] p-3 rounded-lg border border-[#333]">
+                <span className="text-gray-500 uppercase tracking-wider block mb-1">Original Record (v{application.ruleSetVersion})</span>
+                <div className="text-sm font-bold text-white">{application.status}</div>
+              </div>
+
+              <div className="bg-[#111] p-3 rounded-lg border border-indigo-500/40">
+                <span className="text-indigo-400 uppercase tracking-wider block mb-1">
+                  Simulated Decision ({simulationResult.reEvaluatedRecord?.evaluatedVersion})
+                </span>
+                <div className="text-sm font-bold text-white">
+                  {simulationResult.reEvaluatedRecord?.decision}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Immutable Audit Trail Timeline */}
+      <div className="bg-[#111] rounded-xl border border-[#333] p-6 shadow-lg space-y-4">
+        <div className="flex items-center gap-2 pb-3 border-b border-[#222]">
+          <History className="w-4 h-4 text-gray-400" />
+          <h3 className="font-semibold text-white text-sm">Immutable Audit Trail</h3>
+        </div>
+
+        <div className="space-y-4 text-xs">
+          {auditLogs.length === 0 ? (
+            <div className="text-gray-500 py-2">No previous audit modifications recorded.</div>
+          ) : (
+            auditLogs.map((log, idx) => (
+              <div key={idx} className="flex items-start gap-3 p-3 bg-[#181818] border border-[#2a2a2a] rounded-lg">
+                <div className="w-7 h-7 rounded-full bg-[#252525] flex items-center justify-center text-gray-400 shrink-0 mt-0.5">
+                  <User className="w-3.5 h-3.5" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex justify-between items-center mb-0.5">
+                    <span className="font-semibold text-white">{log.evaluatedBy}</span>
+                    <span className="text-[10px] text-gray-500 font-mono">
+                      {new Date(log.timestamp || log.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-gray-300">
+                    Decision: <strong className="text-white">{log.decision}</strong> (RuleSet v{log.ruleSetVersion})
+                  </p>
+                  {log.evaluationSnapshot?.officerNotes && (
+                    <p className="text-gray-400 mt-1 italic">
+                      "{log.evaluationSnapshot.officerNotes}"
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 };

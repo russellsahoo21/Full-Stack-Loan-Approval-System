@@ -2,11 +2,14 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth, ROLES } from './context/AuthContext';
 import MainLayout from './layouts/MainLayout';
+import Dashboard from './pages/Dashboard';
+import ApplicationsList from './pages/ApplicationsList';
 import NewApplication from './pages/NewApplication';
 import ApplicationDetail from './pages/ApplicationDetail';
 import ExceptionQueue from './pages/ExceptionQueue';
 import RuleConfigurator from './pages/RuleConfigurator';
-import Dashboard from './pages/Dashboard';
+import SyntheticSandbox from './pages/SyntheticSandbox';
+import AuditLogsPage from './pages/AuditLogsPage';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
@@ -15,7 +18,7 @@ import Signup from './pages/Signup';
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { currentRole } = useAuth();
   
-  if (!allowedRoles.includes(currentRole)) {
+  if (allowedRoles && !allowedRoles.includes(currentRole)) {
     return <Navigate to="/dashboard" replace />;
   }
   return children;
@@ -26,18 +29,27 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
-          {/* Public Landing Page */}
+          {/* Public Landing & Authentication */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
-          {/* Protected App Shell */}
+          {/* Protected Main Application Shell */}
           <Route element={<MainLayout />}>
             <Route 
               path="/dashboard" 
               element={
-                <ProtectedRoute allowedRoles={[ROLES.RM, ROLES.L1, ROLES.L2, ROLES.ADMIN]}>
+                <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT]}>
                   <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/applications" 
+              element={
+                <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT]}>
+                  <ApplicationsList />
                 </ProtectedRoute>
               } 
             />
@@ -45,7 +57,7 @@ function App() {
             <Route 
               path="/applications/new" 
               element={
-                <ProtectedRoute allowedRoles={[ROLES.RM, ROLES.L1, ROLES.L2, ROLES.ADMIN]}>
+                <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT]}>
                   <NewApplication />
                 </ProtectedRoute>
               } 
@@ -54,7 +66,7 @@ function App() {
             <Route 
               path="/applications/:id" 
               element={
-                <ProtectedRoute allowedRoles={[ROLES.RM, ROLES.L1, ROLES.L2, ROLES.ADMIN]}>
+                <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT]}>
                   <ApplicationDetail />
                 </ProtectedRoute>
               } 
@@ -63,7 +75,7 @@ function App() {
             <Route 
               path="/exceptions" 
               element={
-                <ProtectedRoute allowedRoles={[ROLES.L1, ROLES.L2, ROLES.ADMIN]}>
+                <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.L1, ROLES.L2]}>
                   <ExceptionQueue />
                 </ProtectedRoute>
               } 
@@ -74,6 +86,24 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
                   <RuleConfigurator />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/synthetic-sandbox" 
+              element={
+                <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.L1, ROLES.L2]}>
+                  <SyntheticSandbox />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/audit-logs" 
+              element={
+                <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.L1, ROLES.L2]}>
+                  <AuditLogsPage />
                 </ProtectedRoute>
               } 
             />

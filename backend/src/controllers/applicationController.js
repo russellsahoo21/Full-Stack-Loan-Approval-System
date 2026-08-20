@@ -125,11 +125,13 @@ export const getApplicationById = async (req, res) => {
     }
 
     const profile = await ApplicantProfile.findOne({ applicantId: application.applicantId });
+    const auditLogs = await AuditLog.find({ applicationId: application.applicationId }).sort({ timestamp: -1 });
 
     res.json({ 
       success: true, 
       data: application, 
-      applicantProfile: profile 
+      applicantProfile: profile,
+      auditLogs: auditLogs || []
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -237,6 +239,15 @@ export const handleExceptionDecision = async (req, res) => {
       message: `Exception application updated to ${application.status}`,
       data: application
     });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getAllAuditLogs = async (req, res) => {
+  try {
+    const auditLogs = await AuditLog.find().sort({ timestamp: -1 });
+    res.json({ success: true, count: auditLogs.length, data: auditLogs });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

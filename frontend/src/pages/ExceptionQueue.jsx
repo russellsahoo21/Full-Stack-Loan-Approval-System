@@ -1,57 +1,95 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth, ROLES } from '../context/AuthContext';
 import { 
   Search, Filter, Clock, CheckCircle, XCircle, 
-  ChevronRight, AlertTriangle, MessageSquare, History, User, FileText
+  ChevronRight, AlertTriangle, MessageSquare, History, 
+  User, FileText, RefreshCw, AlertCircle, Sparkles, Check 
 } from 'lucide-react';
 import { formatCurrency } from '../utils/masking';
 import { useNavigate } from 'react-router-dom';
+import { applicationApi } from '../services/api';
 import clsx from 'clsx';
-
-const MOCK_QUEUE = [
-  { id: 'APP-987654', applicant: 'Rahul Sharma', amount: 1200000, level: 'L1', reason: 'EXC-BNC-02: Exceeds allowed bounce limit', date: '2023-10-27T10:30:00Z', status: 'PENDING' },
-  { id: 'APP-987655', applicant: 'Priya Patel', amount: 3500000, level: 'L2', reason: 'EXC-FOIR-01: High FOIR (55%)', date: '2023-10-27T09:15:00Z', status: 'PENDING' },
-  { id: 'APP-987656', applicant: 'Amit Kumar', amount: 850000, level: 'L1', reason: 'EXC-CBL-03: Minor CIBIL drop', date: '2023-10-26T16:45:00Z', status: 'PENDING' },
-];
-
-const MOCK_AUDIT_HISTORY = [
-  { id: 1, action: 'APPLICATION_SUBMITTED', actor: 'RM - Jane Smith', date: '2023-10-27T10:00:00Z', comment: 'Initial document upload complete.' },
-  { id: 2, action: 'BRE_EVALUATION', actor: 'System (BRE Engine)', date: '2023-10-27T10:05:00Z', comment: 'Failed Rule R04: Recent Cheque Bounces. Escalated to L1.' },
-  { id: 3, action: 'ESCALATION_ROUTED', actor: 'System Workflow', date: '2023-10-27T10:06:00Z', comment: 'Added to L1 Exception Queue.' },
-];
 
 const ExceptionQueue = () => {
   const { currentRole } = useAuth();
   const navigate = useNavigate();
   
+  const [queue, setQueue] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedApp, setSelectedApp] = useState(null); 
   const [justification, setJustification] = useState('');
+  const [isSubmittingAction, setIsSubmittingAction] = useState(false);
+  const [actionSuccessMsg, setActionSuccessMsg] = useState('');
 
-  const filteredQueue = MOCK_QUEUE.filter(app => {
-    const matchesSearch = app.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          app.applicant.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    if (currentRole === ROLES.L1) return matchesSearch && app.level === 'L1';
-    if (currentRole === ROLES.L2) return matchesSearch && app.level === 'L2';
-    return matchesSearch;
+  const fetchExceptions = async () => {
+    setIsLoading(true);
+    try {
+      const res = await applicationApi.getAll('EXCEPTION_REQUIRED');
+      if (res.success) {
+        setQueue(res.data || []);
+      }
+    } catch (err) {
+      console.warn('Failed to load exception queue from backend:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchExceptions();
+  }, []);
+
+  const filteredQueue = queue.filter(app => {
+    const term = searchTerm.toLowerCase();
+    const idMatch = (app.applicationId || app._id || '').toLowerCase().includes(term);
+    const applicantMatch = (app.applicantId || '').toLowerCase().includes(term);
+    return idMatch || applicantMatch;
   });
 
-  const handleAction = (actionType) => {
-    if (!justification) return;
-    alert(`Mock Action: ${actionType} on ${selectedApp.id}\nJustification: ${justification}`);
-    setSelectedApp(null);
-    setJustification('');
+  const handleAction = async (actionType) => {
+    if (!justification) {
+      alert('Please enter justification / compliance reasoning.');
+      return;
+    }
+    setIsSubmittingAction(true);
+    setActionSuccessMsg('');
+    try {
+      const appId = selectedApp.applicationId || selectedApp._id;
+      const res = await applicationApi.exceptionDecision(appId, {
+        action: actionType,
+        officerNotes: justification,
+      });
+
+      if (res.success) {
+        setActionSuccessMsg(`Application ${appId} successfully updated to ${res.data?.status || actionType}`);
+        setSelectedApp(null);
+        setJustification('');
+        await fetchExceptions();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to process exception decision');
+    } finally {
+      setIsSubmittingAction(false);
+    }
   };
 
   return (
-    <div className="max-w-7xl mx-auto flex h-[calc(100vh-8rem)] relative overflow-hidden">
+    <div className="max-w-7xl mx-auto flex h-[calc(100vh-8rem)] relative overflow-hidden animate-in fade-in duration-500">
       
-      <div className={clsx("flex-1 flex flex-col transition-all duration-300 w-full", selectedApp ? "mr-[400px]" : "")}>
+      {/* Left List Area */}
+      <div className={clsx("flex-1 flex flex-col transition-all duration-300 w-full", selectedApp ? "mr-[420px]" : "")}>
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-white">Exception Queue</h1>
-            <p className="text-sm text-gray-400">Applications requiring manual override or escalation review.</p>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-white tracking-tight">Credit Exception Queue</h1>
+              <span className="text-xs bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 px-2.5 py-0.5 rounded-full font-semibold">
+                {queue.length} Pending
+              </span>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              Applications requiring underwriter exception review, policy override, or escalation.
+            </p>
           </div>
           
           <div className="flex items-center gap-3">
@@ -59,74 +97,92 @@ const ExceptionQueue = () => {
               <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
               <input 
                 type="text"
-                placeholder="Search ID or Name..."
+                placeholder="Search by ID or Applicant..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-[#111] border border-[#333] text-white rounded-md text-sm focus:ring-1 focus:ring-white focus:border-white outline-none w-64 placeholder-gray-500"
+                className="pl-9 pr-4 py-2 bg-[#111] border border-[#333] text-white rounded-lg text-xs focus:ring-1 focus:ring-white focus:border-white outline-none w-64 placeholder-gray-500 transition-all"
               />
             </div>
-            <button className="p-2 bg-[#111] border border-[#333] rounded-md hover:bg-[#222] text-gray-400 transition-colors">
-              <Filter className="w-4 h-4" />
+            <button 
+              onClick={fetchExceptions}
+              disabled={isLoading}
+              className="p-2 bg-[#111] border border-[#333] hover:border-gray-500 rounded-lg text-gray-400 hover:text-white transition-colors"
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
-        <div className="bg-[#111] rounded-xl border border-[#333] flex-1 overflow-hidden flex flex-col">
+        {actionSuccessMsg && (
+          <div className="mb-4 bg-green-500/10 border border-green-500/30 text-green-400 px-4 py-3 rounded-lg text-xs flex items-center gap-2 animate-in fade-in">
+            <Check className="w-4 h-4" />
+            <span>{actionSuccessMsg}</span>
+          </div>
+        )}
+
+        <div className="bg-[#111] rounded-xl border border-[#333] flex-1 overflow-hidden flex flex-col shadow-lg">
           <div className="overflow-x-auto flex-1">
             <table className="w-full text-left border-collapse">
-              <thead className="bg-[#1a1a1a] sticky top-0 z-10">
+              <thead className="bg-[#161616] sticky top-0 z-10">
                 <tr className="text-gray-400 text-xs uppercase tracking-wider">
-                  <th className="px-6 py-4 font-medium border-b border-[#333]">Application</th>
-                  <th className="px-6 py-4 font-medium border-b border-[#333]">Amount</th>
-                  <th className="px-6 py-4 font-medium border-b border-[#333]">Exception Reason</th>
-                  <th className="px-6 py-4 font-medium border-b border-[#333]">Aging</th>
-                  <th className="px-6 py-4 font-medium border-b border-[#333]">Level</th>
-                  <th className="px-6 py-4 font-medium border-b border-[#333]">Action</th>
+                  <th className="px-6 py-3.5 font-medium border-b border-[#333]">Application ID</th>
+                  <th className="px-6 py-3.5 font-medium border-b border-[#333]">Loan Amount</th>
+                  <th className="px-6 py-3.5 font-medium border-b border-[#333]">Triggered Exception Reason</th>
+                  <th className="px-6 py-3.5 font-medium border-b border-[#333]">Rule Version</th>
+                  <th className="px-6 py-3.5 font-medium border-b border-[#333]">Queue Level</th>
+                  <th className="px-6 py-3.5 font-medium border-b border-[#333]">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#222] text-sm">
-                {filteredQueue.length === 0 ? (
+              <tbody className="divide-y divide-[#222] text-xs">
+                {isLoading ? (
                   <tr>
                     <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
-                      No applications found in your queue.
+                      <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-gray-400" />
+                      <span>Loading pending exception applications...</span>
+                    </td>
+                  </tr>
+                ) : filteredQueue.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-16 text-center text-gray-500">
+                      <CheckCircle className="w-8 h-8 text-green-500/50 mx-auto mb-2" />
+                      <p className="text-sm text-gray-300 font-semibold">Queue is clear!</p>
+                      <p className="text-xs text-gray-500 mt-1">No applications currently awaiting credit exception review.</p>
                     </td>
                   </tr>
                 ) : (
                   filteredQueue.map((app) => (
-                    <tr key={app.id} className="hover:bg-[#1a1a1a] transition-colors">
+                    <tr key={app.applicationId || app._id} className="hover:bg-[#181818] transition-colors">
                       <td className="px-6 py-4">
-                        <div className="font-medium text-white">{app.id}</div>
-                        <div className="text-gray-400">{app.applicant}</div>
+                        <div className="font-bold text-white">{app.applicationId}</div>
+                        <div className="text-gray-400 font-mono text-[11px]">Applicant: {app.applicantId}</div>
                       </td>
-                      <td className="px-6 py-4 font-medium text-white">
-                        {formatCurrency(app.amount)}
+                      <td className="px-6 py-4 font-bold text-white">
+                        {formatCurrency(app.requestedLoanAmount)}
+                        <div className="text-[10px] text-gray-500 font-normal">{app.requestedTenureMonths} Mo</div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-start gap-2 text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 px-3 py-2 rounded-md max-w-xs">
-                          <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                          <span className="text-xs leading-tight">{app.reason}</span>
+                      <td className="px-6 py-4 max-w-xs">
+                        <div className="flex items-start gap-1.5 text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 px-2.5 py-1.5 rounded-lg text-xs leading-relaxed">
+                          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                          <span className="truncate">
+                            {app.exceptionDetails?.deviations?.[0] || 'Deviation from standard policy parameter'}
+                          </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-gray-400">
-                        <div className="flex items-center gap-1.5">
-                          <Clock className="w-4 h-4 text-gray-500" />
-                          2 Hours
-                        </div>
+                      <td className="px-6 py-4 font-mono text-gray-400">
+                        v{app.ruleSetVersion}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={clsx(
-                          "px-2.5 py-1 text-[10px] uppercase tracking-wider font-semibold rounded-full border",
-                          app.level === 'L1' ? "bg-blue-500/10 text-blue-500 border-blue-500/20" : "bg-purple-500/10 text-purple-500 border-purple-500/20"
-                        )}>
-                          {app.level} Queue
+                        <span className="px-2 py-0.5 text-[10px] uppercase font-bold rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                          L1 Review
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <button 
                           onClick={() => setSelectedApp(app)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-black bg-white hover:bg-gray-200 rounded-md transition-colors"
+                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-black bg-white hover:bg-gray-200 rounded-lg transition-all shadow-sm"
                         >
-                          Review <ChevronRight className="w-4 h-4" />
+                          <span>Review</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
                         </button>
                       </td>
                     </tr>
@@ -138,95 +194,104 @@ const ExceptionQueue = () => {
         </div>
       </div>
 
+      {/* Right Drawer Review Panel */}
       {selectedApp && (
-        <div className="absolute right-0 top-0 bottom-0 w-[400px] bg-[#0a0a0a] shadow-2xl border-l border-[#333] flex flex-col z-20 animate-in slide-in-from-right duration-300 rounded-l-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#333] flex items-center justify-between bg-[#111]">
+        <div className="absolute right-0 top-0 bottom-0 w-[410px] bg-[#0d0d0d] shadow-2xl border-l border-[#333] flex flex-col z-20 animate-in slide-in-from-right duration-300 rounded-l-2xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#333] flex items-center justify-between bg-[#141414]">
             <div>
-              <h2 className="text-lg font-bold text-white">Review Exception</h2>
-              <p className="text-sm text-gray-400">{selectedApp.id}</p>
+              <h2 className="text-base font-bold text-white">Exception Decision Review</h2>
+              <p className="text-xs text-gray-400 font-mono">{selectedApp.applicationId} • Applicant: {selectedApp.applicantId}</p>
             </div>
             <button 
               onClick={() => setSelectedApp(null)}
-              className="p-2 hover:bg-[#222] rounded-full transition-colors text-gray-500"
+              className="p-1.5 hover:bg-[#222] rounded-lg transition-colors text-gray-400 hover:text-white"
             >
               <XCircle className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-8">
-            <div>
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Applicant</h3>
-                  <p className="font-medium text-white">{selectedApp.applicant}</p>
-                </div>
-                <button 
-                  onClick={() => navigate(`/applications/${selectedApp.id}`)}
-                  className="text-sm text-gray-400 hover:text-white flex items-center gap-1 border border-[#333] px-2 py-1 rounded-md hover:bg-[#222]"
-                >
-                  <FileText className="w-3.5 h-3.5" /> View App
-                </button>
+          <div className="flex-1 overflow-y-auto p-6 space-y-5">
+            {/* Key Metrics */}
+            <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-4 space-y-2 text-xs">
+              <div className="flex justify-between text-gray-400">
+                <span>Requested Loan:</span>
+                <span className="text-white font-bold">{formatCurrency(selectedApp.requestedLoanAmount)}</span>
               </div>
-              
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-yellow-500 flex items-center gap-2 mb-2">
-                  <AlertTriangle className="w-4 h-4" /> Triggered Rule
-                </h4>
-                <p className="text-sm text-yellow-500/80 leading-relaxed">{selectedApp.reason}</p>
+              <div className="flex justify-between text-gray-400">
+                <span>Tenure:</span>
+                <span className="text-white font-medium">{selectedApp.requestedTenureMonths} Months</span>
+              </div>
+              <div className="flex justify-between text-gray-400">
+                <span>FOIR:</span>
+                <span className="text-white font-bold">{selectedApp.derivedMetrics?.foir}%</span>
               </div>
             </div>
 
-            <div>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <History className="w-4 h-4" /> Audit Trail
-              </h3>
-              <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-[1px] before:bg-gradient-to-b before:from-transparent before:via-[#444] before:to-transparent">
-                {MOCK_AUDIT_HISTORY.map((log) => (
-                  <div key={log.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-full border border-[#333] bg-[#111] text-gray-400 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
-                      <User className="w-4 h-4" />
-                    </div>
-                    <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-lg border border-[#333] bg-[#111]">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="font-semibold text-white text-xs">{log.actor}</div>
-                        <time className="text-xs text-gray-500 font-mono">10:00 AM</time>
-                      </div>
-                      <div className="text-xs text-gray-400">{log.comment}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            {/* Deviations */}
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+              <h4 className="text-xs font-bold text-red-400 flex items-center gap-1.5 mb-2">
+                <AlertTriangle className="w-4 h-4" /> Triggered Policy Deviation
+              </h4>
+              <ul className="text-xs text-gray-300 space-y-1 list-disc list-inside">
+                {selectedApp.exceptionDetails?.deviations?.map((d, i) => (
+                  <li key={i}>{d}</li>
+                )) || <li>Threshold exceeded</li>}
+              </ul>
             </div>
-            
-            <div className="mt-auto border-t border-[#333] pt-6">
-              <h3 className="text-sm font-semibold text-white mb-2">Approver Justification</h3>
-              <div className="relative mb-4">
-                <MessageSquare className="w-4 h-4 absolute left-3 top-3 text-gray-500" />
-                <textarea 
-                  rows="3"
-                  value={justification}
-                  onChange={(e) => setJustification(e.target.value)}
-                  placeholder="Enter detailed reasoning for compliance..."
-                  className="w-full pl-9 pr-4 py-2 bg-[#111] border border-[#333] text-white rounded-md text-sm focus:ring-1 focus:ring-white focus:border-white outline-none resize-none placeholder-gray-500"
-                />
-              </div>
-              
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => handleAction('REJECT')}
-                  disabled={!justification}
-                  className="flex-1 flex justify-center items-center gap-2 px-4 py-2 bg-transparent border border-red-500/50 text-red-500 font-medium rounded-md hover:bg-red-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <XCircle className="w-4 h-4" /> Reject
-                </button>
-                <button 
-                  onClick={() => handleAction('APPROVE_EXCEPTION')}
-                  disabled={!justification}
-                  className="flex-1 flex justify-center items-center gap-2 px-4 py-2 bg-white text-black font-medium rounded-md hover:bg-gray-200 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <CheckCircle className="w-4 h-4" /> Approve Override
-                </button>
-              </div>
+
+            {/* Mitigating Factors */}
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
+              <h4 className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 mb-2">
+                <CheckCircle className="w-4 h-4" /> Compensating Asset & Buffer Factors
+              </h4>
+              <ul className="text-xs text-gray-300 space-y-1 list-disc list-inside">
+                {selectedApp.exceptionDetails?.mitigatingFactors?.map((m, i) => (
+                  <li key={i}>{m}</li>
+                )) || <li>Liquid asset buffer available</li>}
+              </ul>
+            </div>
+
+            {/* Justification input */}
+            <div className="pt-2">
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                Officer Underwriting Justification (Required)
+              </label>
+              <textarea 
+                rows="4"
+                value={justification}
+                onChange={(e) => setJustification(e.target.value)}
+                placeholder="State risk justification and compliance rationale..."
+                className="w-full p-3 bg-[#161616] border border-[#333] text-white rounded-xl text-xs focus:ring-1 focus:ring-white focus:border-white outline-none resize-none placeholder-gray-600 transition-all"
+              />
+            </div>
+
+            <div className="pt-2 flex gap-3">
+              <button 
+                onClick={() => handleAction('REJECT')}
+                disabled={!justification || isSubmittingAction}
+                className="flex-1 flex justify-center items-center gap-1.5 py-2.5 bg-transparent border border-red-500/50 text-red-400 font-bold rounded-xl text-xs hover:bg-red-500/10 transition-all disabled:opacity-40"
+              >
+                <XCircle className="w-4 h-4" />
+                <span>Reject</span>
+              </button>
+              <button 
+                onClick={() => handleAction('APPROVE')}
+                disabled={!justification || isSubmittingAction}
+                className="flex-1 flex justify-center items-center gap-1.5 py-2.5 bg-white text-black font-bold rounded-xl text-xs hover:bg-gray-200 transition-all shadow-md disabled:opacity-40"
+              >
+                <CheckCircle className="w-4 h-4" />
+                <span>Approve Override</span>
+              </button>
+            </div>
+
+            <div className="pt-2 text-center">
+              <button
+                onClick={() => navigate(`/applications/${selectedApp.applicationId || selectedApp._id}`)}
+                className="text-xs text-gray-400 hover:text-white inline-flex items-center gap-1 underline underline-offset-4"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>View Full Application Scorecard</span>
+              </button>
             </div>
           </div>
         </div>
