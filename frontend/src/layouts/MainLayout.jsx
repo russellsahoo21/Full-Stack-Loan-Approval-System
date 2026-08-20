@@ -122,7 +122,7 @@ const MainLayout = () => {
           <span className="font-bold text-base tracking-tight text-white">Smart Underwrite</span>
         </Link>
         
-        <nav className="flex-1 py-4 px-3 space-y-4 overflow-y-auto">
+        <nav className="flex-1 py-4 px-3 space-y-4 overflow-y-auto no-scrollbar">
           {navSections.map((section, sIdx) => {
             const visibleLinks = section.links.filter(l => l.roles.includes(currentRole));
             if (visibleLinks.length === 0) return null;

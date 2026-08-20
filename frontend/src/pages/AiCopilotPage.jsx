@@ -311,7 +311,7 @@ const AiCopilotPage = () => {
         </div>
 
         {/* Prompt Starters Bar */}
-        <div className="px-5 py-2.5 bg-[#141414] border-t border-[#222] flex items-center gap-2 overflow-x-auto">
+        <div className="px-5 py-2.5 bg-[#141414] border-t border-[#222] flex items-center gap-2 overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-1 text-[11px] font-semibold text-gray-500 shrink-0">
             <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
             <span>Starters:</span>
