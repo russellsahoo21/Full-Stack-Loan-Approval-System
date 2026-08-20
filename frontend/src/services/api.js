@@ -161,6 +161,30 @@ export const exceptionsApi = {
   },
 };
 
+// AI Intelligence Suite Endpoints
+export const aiApi = {
+  copilotChat: async (payload) => {
+    const res = await api.post('/ai/copilot/chat', payload);
+    return res.data;
+  },
+  stressTestSimulate: async (payload) => {
+    const res = await api.post('/ai/stress-test/simulate', payload);
+    return res.data;
+  },
+  getFraudCases: async () => {
+    const res = await api.get('/ai/fraud/cases');
+    return res.data;
+  },
+  analyzeFraud: async (payload) => {
+    const res = await api.post('/ai/fraud/analyze', payload);
+    return res.data;
+  },
+  optimizePricing: async (payload) => {
+    const res = await api.post('/ai/pricing/optimize', payload);
+    return res.data;
+  },
+};
+
 // Health Check Endpoint
 export const healthApi = {
   getHealth: async () => {

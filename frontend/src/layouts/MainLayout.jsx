@@ -3,7 +3,8 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   FileText, List, Settings, ShieldAlert, LayoutDashboard, 
   ChevronDown, User, LogOut, Menu, Sparkles, History, 
-  Database, Layers, Check, BrainCircuit 
+  Database, Layers, Check, BrainCircuit, Bot, Activity, 
+  ShieldCheck, Percent, Zap
 } from 'lucide-react';
 import { useAuth, ROLES, ROLE_LABELS } from '../context/AuthContext';
 import clsx from 'clsx';
@@ -14,55 +15,95 @@ const MainLayout = () => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const navLinks = [
-    { 
-      name: 'Dashboard', 
-      path: '/dashboard', 
-      icon: LayoutDashboard, 
-      roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
+  const navSections = [
+    {
+      title: 'Core Underwriting',
+      links: [
+        { 
+          name: 'Dashboard', 
+          path: '/dashboard', 
+          icon: LayoutDashboard, 
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
+        },
+        { 
+          name: currentRole === ROLES.APPLICANT ? 'My Applications' : 'All Applications', 
+          path: '/applications', 
+          icon: Layers, 
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT] 
+        },
+        { 
+          name: currentRole === ROLES.APPLICANT ? 'Apply for Loan' : 'New Application', 
+          path: '/applications/new', 
+          icon: FileText, 
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT] 
+        },
+        { 
+          name: 'Exception Intelligence', 
+          path: '/exception-intelligence', 
+          icon: BrainCircuit, 
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
+        },
+        { 
+          name: 'Exception Queue', 
+          path: '/exceptions', 
+          icon: List, 
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
+        },
+      ]
     },
-    { 
-      name: currentRole === ROLES.APPLICANT ? 'My Applications' : 'All Applications', 
-      path: '/applications', 
-      icon: Layers, 
-      roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT] 
+    {
+      title: 'AI Intelligence Suite',
+      badge: 'AI Powered',
+      links: [
+        { 
+          name: 'AI Underwrite Copilot', 
+          path: '/ai-copilot', 
+          icon: Bot, 
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT] 
+        },
+        { 
+          name: 'Macro Stress Lab', 
+          path: '/ai-stress-testing', 
+          icon: Activity, 
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
+        },
+        { 
+          name: 'Fraud Anomaly Radar', 
+          path: '/ai-fraud-radar', 
+          icon: ShieldAlert, 
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
+        },
+        { 
+          name: 'Dynamic Pricing AI', 
+          path: '/ai-pricing-optimizer', 
+          icon: Percent, 
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
+        },
+      ]
     },
-    { 
-      name: currentRole === ROLES.APPLICANT ? 'Apply for Loan' : 'New Application', 
-      path: '/applications/new', 
-      icon: FileText, 
-      roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT] 
-    },
-    { 
-      name: 'Exception Intelligence', 
-      path: '/exception-intelligence', 
-      icon: BrainCircuit, 
-      roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
-    },
-    { 
-      name: 'Exception Queue', 
-      path: '/exceptions', 
-      icon: List, 
-      roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
-    },
-    { 
-      name: 'BRE Studio', 
-      path: '/admin/rules', 
-      icon: Settings, 
-      roles: [ROLES.ADMIN] 
-    },
-    { 
-      name: 'Synthetic Sandbox', 
-      path: '/synthetic-sandbox', 
-      icon: Sparkles, 
-      roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
-    },
-    { 
-      name: 'Audit Trail', 
-      path: '/audit-logs', 
-      icon: History, 
-      roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
-    },
+    {
+      title: 'Governance & Admin',
+      links: [
+        { 
+          name: 'BRE Studio', 
+          path: '/admin/rules', 
+          icon: Settings, 
+          roles: [ROLES.ADMIN] 
+        },
+        { 
+          name: 'Synthetic Sandbox', 
+          path: '/synthetic-sandbox', 
+          icon: Sparkles, 
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
+        },
+        { 
+          name: 'Audit Trail', 
+          path: '/audit-logs', 
+          icon: History, 
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
+        },
+      ]
+    }
   ];
 
   const handleLogout = () => {
@@ -76,34 +117,50 @@ const MainLayout = () => {
       <aside className="w-64 bg-[#111] border-r border-[#2a2a2a] flex flex-col hidden md:flex sticky top-0 h-screen z-30">
         <Link to={currentRole === ROLES.APPLICANT ? "/applications" : "/dashboard"} className="h-16 flex items-center px-6 border-b border-[#2a2a2a] gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center text-white shadow-[0_0_15px_rgba(255,255,255,0.05)]">
-            <ShieldAlert className="w-5 h-5 text-white" />
+            <Zap className="w-5 h-5 text-amber-400" />
           </div>
           <span className="font-bold text-base tracking-tight text-white">Smart Underwrite</span>
         </Link>
         
-        <nav className="flex-1 py-6 px-3 space-y-1.5 overflow-y-auto">
-          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 px-3">
-            Core Modules
-          </div>
-          {navLinks.map((link) => {
-            const Icon = link.icon;
-            const isActive = location.pathname === link.path;
-            if (!link.roles.includes(currentRole)) return null;
-            
+        <nav className="flex-1 py-4 px-3 space-y-4 overflow-y-auto">
+          {navSections.map((section, sIdx) => {
+            const visibleLinks = section.links.filter(l => l.roles.includes(currentRole));
+            if (visibleLinks.length === 0) return null;
+
             return (
-              <Link 
-                key={link.path} 
-                to={link.path} 
-                className={clsx(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition-all",
-                  isActive 
-                    ? "bg-white text-black shadow-sm font-bold" 
-                    : "text-gray-400 hover:bg-[#1c1c1c] hover:text-white"
-                )}
-              >
-                <Icon className="w-4 h-4 shrink-0" />
-                <span>{link.name}</span>
-              </Link>
+              <div key={sIdx} className="space-y-1">
+                <div className="flex items-center justify-between px-3 mb-2">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                    {section.title}
+                  </span>
+                  {section.badge && (
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                      {section.badge}
+                    </span>
+                  )}
+                </div>
+
+                {visibleLinks.map((link) => {
+                  const Icon = link.icon;
+                  const isActive = location.pathname === link.path;
+                  
+                  return (
+                    <Link 
+                      key={link.path} 
+                      to={link.path} 
+                      className={clsx(
+                        "flex items-center gap-2.5 px-3 py-2 rounded-xl font-medium text-xs transition-all",
+                        isActive 
+                          ? "bg-white text-black shadow-sm font-bold" 
+                          : "text-gray-400 hover:bg-[#1c1c1c] hover:text-white"
+                      )}
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      <span className="truncate">{link.name}</span>
+                    </Link>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>
@@ -164,25 +221,36 @@ const MainLayout = () => {
 
         {/* Mobile Dropdown Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-[#111] border-b border-[#333] p-4 space-y-2 animate-in slide-in-from-top duration-300">
-            {navLinks.map((link) => {
-              const Icon = link.icon;
-              const isActive = location.pathname === link.path;
-              if (!link.roles.includes(currentRole)) return null;
+          <div className="md:hidden bg-[#111] border-b border-[#333] p-4 space-y-3 animate-in slide-in-from-top duration-300 max-h-[80vh] overflow-y-auto">
+            {navSections.map((section, sIdx) => {
+              const visibleLinks = section.links.filter(l => l.roles.includes(currentRole));
+              if (visibleLinks.length === 0) return null;
 
               return (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={clsx(
-                    "flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium",
-                    isActive ? "bg-white text-black font-bold" : "text-gray-400"
-                  )}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{link.name}</span>
-                </Link>
+                <div key={sIdx} className="space-y-1">
+                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest px-2">
+                    {section.title}
+                  </div>
+                  {visibleLinks.map((link) => {
+                    const Icon = link.icon;
+                    const isActive = location.pathname === link.path;
+
+                    return (
+                      <Link
+                        key={link.path}
+                        to={link.path}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={clsx(
+                          "flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium",
+                          isActive ? "bg-white text-black font-bold" : "text-gray-400"
+                        )}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span>{link.name}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
               );
             })}
           </div>
