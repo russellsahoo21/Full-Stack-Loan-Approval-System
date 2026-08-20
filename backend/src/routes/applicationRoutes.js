@@ -4,6 +4,7 @@ import {
   getAllApplications, 
   getApplicationById, 
   evaluateApplicationUnderVersion, 
+  reRunAndSaveAudit,
   handleExceptionDecision,
   getAllAuditLogs
 } from '../controllers/applicationController.js';
@@ -25,6 +26,9 @@ router.get('/:id', protect, getApplicationById);
 
 // Version evaluation comparison (Admin & Officers)
 router.get('/:id/evaluate-version/:targetVersion', protect, authorize('POLICY_ADMIN', 'CREDIT_OFFICER_L1', 'CREDIT_OFFICER_L2'), evaluateApplicationUnderVersion);
+
+// Re-run under a version + save immutable audit record
+router.post('/:id/rerun/:targetVersion', protect, authorize('POLICY_ADMIN', 'CREDIT_OFFICER_L1', 'CREDIT_OFFICER_L2'), reRunAndSaveAudit);
 
 // Exception decision approval/rejection (Admin & Officers)
 router.post('/:id/exception', protect, authorize('CREDIT_OFFICER_L1', 'CREDIT_OFFICER_L2', 'POLICY_ADMIN'), handleExceptionDecision);

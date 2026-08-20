@@ -146,7 +146,7 @@ export const getApplicationById = async (req, res) => {
   }
 };
 
-// Demo Proof: Re-evaluate application against any specific RuleSet Version
+// Re-evaluate application against any specific RuleSet Version (enhanced with full comparison)
 export const evaluateApplicationUnderVersion = async (req, res) => {
   try {
     const { id, targetVersion } = req.params;
@@ -166,29 +166,133 @@ export const evaluateApplicationUnderVersion = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Applicant profile not found' });
     }
 
+    // Run BRE under the target version
     const breResult = runBRE(
-      profile, 
-      application.requestedLoanAmount, 
-      application.requestedTenureMonths, 
+      profile,
+      application.requestedLoanAmount,
+      application.requestedTenureMonths,
       targetRuleSet
     );
 
+    // Build rule-level comparison: which rules changed result?
+    const originalScorecard = application.scorecard || [];
+    const newScorecard = breResult.scorecard;
+
+    const changedRules = [];
+    newScorecard.forEach(newRule => {
+      const oldRule = originalScorecard.find(r => r.ruleCode === newRule.ruleCode);
+      if (oldRule && oldRule.passed !== newRule.passed) {
+        changedRules.push({
+          ruleCode: newRule.ruleCode,
+          description: newRule.description,
+          before: { passed: oldRule.passed, thresholdRequired: oldRule.thresholdRequired, actualValue: oldRule.actualValue },
+          after: { passed: newRule.passed, thresholdRequired: newRule.thresholdRequired, actualValue: newRule.actualValue }
+        });
+      }
+    });
+
+    const decisionChanged = application.status !== breResult.decision;
+    const impactLevel = changedRules.length === 0 ? 'NONE'
+      : decisionChanged && breResult.decision === 'REJECTED' ? 'HIGH'
+      : decisionChanged ? 'MEDIUM'
+      : 'LOW';
+
+    // Stats
+    const rulesPassed = newScorecard.filter(r => r.passed).length;
+    const rulesFailed = newScorecard.filter(r => !r.passed).length;
+
     res.json({
       success: true,
-      message: `Re-evaluation under RuleSet Version v${targetVersion} completed (Original decision under v${application.ruleSetVersion} remains immutable).`,
+      message: `Re-evaluation under RuleSet v${targetVersion} completed. Original decision under v${application.ruleSetVersion} remains immutable.`,
       comparison: {
         applicationId: application.applicationId,
         applicantName: profile.name,
-        originalRecord: {
-          evaluatedVersion: `v${application.ruleSetVersion}`,
-          decision: application.status
+        applicantId: application.applicantId,
+        loanAmount: application.requestedLoanAmount,
+        tenureMonths: application.requestedTenureMonths,
+        before: {
+          version: application.ruleSetVersion,
+          decision: application.status,
+          scorecard: originalScorecard,
+          evaluationResult: application.evaluationResult,
+          derivedMetrics: application.derivedMetrics
         },
-        reEvaluatedRecord: {
-          evaluatedVersion: `v${targetRuleSet.version}`,
+        after: {
+          version: targetRuleSet.version,
           decision: breResult.decision,
-          scorecard: breResult.scorecard,
-          evaluationResult: breResult.evaluationResult
+          scorecard: newScorecard,
+          evaluationResult: breResult.evaluationResult,
+          derivedMetrics: breResult.derivedMetrics
+        },
+        analysis: {
+          decisionChanged,
+          impactLevel,
+          rulesEvaluated: newScorecard.length,
+          rulesPassed,
+          rulesFailed,
+          changedRules,
+          primaryChangedRule: changedRules.length > 0 ? changedRules[0] : null,
+          targetRuleSetChangeLog: targetRuleSet.changeLog || []
         }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Re-run under a version AND save immutable audit record
+export const reRunAndSaveAudit = async (req, res) => {
+  try {
+    const { id, targetVersion } = req.params;
+    const application = await findApplicationByIdOrCustomId(id);
+
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Application not found' });
+    }
+
+    const targetRuleSet = await RuleSet.findOne({ version: Number(targetVersion) });
+    if (!targetRuleSet) {
+      return res.status(404).json({ success: false, message: `RuleSet version ${targetVersion} not found` });
+    }
+
+    const profile = await ApplicantProfile.findOne({ applicantId: application.applicantId });
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'Applicant profile not found' });
+    }
+
+    const breResult = runBRE(
+      profile,
+      application.requestedLoanAmount,
+      application.requestedTenureMonths,
+      targetRuleSet
+    );
+
+    // Save immutable audit trail entry for this re-run
+    await AuditLog.create({
+      applicationId: application.applicationId,
+      applicantId: application.applicantId,
+      ruleSetVersion: targetRuleSet.version,
+      decision: breResult.decision,
+      evaluatedBy: `Re-Run by ${req.user?.name || 'System'} (under v${targetVersion})`,
+      evaluationSnapshot: {
+        scorecard: breResult.scorecard,
+        derivedMetrics: breResult.derivedMetrics,
+        evaluationResult: breResult.evaluationResult,
+        originalDecision: application.status,
+        originalVersion: application.ruleSetVersion
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `Re-run audit saved. Application v${application.ruleSetVersion} decision preserved, v${targetVersion} result recorded.`,
+      data: {
+        applicationId: application.applicationId,
+        originalDecision: application.status,
+        originalVersion: application.ruleSetVersion,
+        reRunDecision: breResult.decision,
+        reRunVersion: targetVersion
       }
     });
   } catch (error) {

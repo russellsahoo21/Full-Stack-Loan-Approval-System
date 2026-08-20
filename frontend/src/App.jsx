@@ -8,6 +8,8 @@ import NewApplication from './pages/NewApplication';
 import ApplicationDetail from './pages/ApplicationDetail';
 import ExceptionQueue from './pages/ExceptionQueue';
 import RuleConfigurator from './pages/RuleConfigurator';
+import RuleVersionTimeline from './pages/RuleVersionTimeline';
+import DecisionComparison from './pages/DecisionComparison';
 import SyntheticSandbox from './pages/SyntheticSandbox';
 import AuditLogsPage from './pages/AuditLogsPage';
 import LandingPage from './pages/LandingPage';
@@ -86,6 +88,24 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
                   <RuleConfigurator />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/admin/rules/timeline" 
+              element={
+                <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+                  <RuleVersionTimeline />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/applications/:id/compare/:targetVersion" 
+              element={
+                <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.L1, ROLES.L2]}>
+                  <DecisionComparison />
                 </ProtectedRoute>
               } 
             />
