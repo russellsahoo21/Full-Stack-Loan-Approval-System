@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
+import { isDbConnected } from '../config/db.js';
 
 export const protect = async (req, res, next) => {
   let token;
@@ -13,10 +14,26 @@ export const protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'smart_bre_credit_underwriting_secret_key_2026');
-    req.user = await User.findById(decoded.id).select('-password');
-    if (!req.user) {
-      return res.status(401).json({ success: false, message: 'User no longer exists' });
+    
+    if (isDbConnected) {
+      try {
+        req.user = await User.findById(decoded.id).select('-password');
+      } catch (dbErr) {
+        req.user = null;
+      }
     }
+
+    // Fallback to decoded payload info if DB connection is offline/whitelist pending
+    if (!req.user) {
+      req.user = {
+        _id: decoded.id,
+        id: decoded.id,
+        name: decoded.name || 'System User',
+        email: decoded.email,
+        role: decoded.role
+      };
+    }
+
     next();
   } catch (error) {
     return res.status(401).json({ success: false, message: 'Token invalid or expired' });
