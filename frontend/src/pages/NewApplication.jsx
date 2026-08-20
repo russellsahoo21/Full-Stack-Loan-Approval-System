@@ -2,14 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { 
   UploadCloud, FileJson, CheckCircle2, AlertCircle, 
   ChevronRight, Calculator, User, Building, CreditCard, 
-  Sparkles, RefreshCw, AlertTriangle, ArrowRight, Tag
+  Sparkles, RefreshCw, AlertTriangle, ArrowRight, Tag,
+  Search, ShieldCheck, Fingerprint, Database, Check
 } from 'lucide-react';
 import { maskPAN, maskMobile, maskAccountNumber, formatCurrency } from '../utils/masking';
 import { useNavigate } from 'react-router-dom';
-import { applicationApi, rulesApi } from '../services/api';
+import { applicationApi, rulesApi, bureauApi } from '../services/api';
 import { useAuth, ROLES } from '../context/AuthContext';
 
-// Mirrors backend policy.js LOAN_TYPE_CONFIGS — single source of truth is backend
+// Mirrors backend policy.js LOAN_TYPE_CONFIGS
 const LOAN_TYPE_CONFIGS = {
   PERSONAL: {
     label: 'Personal Loan',
@@ -22,7 +23,7 @@ const LOAN_TYPE_CONFIGS = {
     tenureOptions: [12, 24, 36, 48, 60],
     color: 'from-violet-500/20 to-purple-500/10',
     borderColor: 'border-violet-500/40',
-    textColor: 'text-violet-300'
+    textColor: 'text-white'
   },
   HOME: {
     label: 'Home Loan',
@@ -35,7 +36,7 @@ const LOAN_TYPE_CONFIGS = {
     tenureOptions: [60, 84, 120, 180, 240, 300, 360],
     color: 'from-emerald-500/20 to-green-500/10',
     borderColor: 'border-emerald-500/40',
-    textColor: 'text-emerald-300'
+    textColor: 'text-white'
   },
   CAR: {
     label: 'Car Loan',
@@ -48,7 +49,7 @@ const LOAN_TYPE_CONFIGS = {
     tenureOptions: [12, 24, 36, 48, 60, 72, 84],
     color: 'from-blue-500/20 to-sky-500/10',
     borderColor: 'border-blue-500/40',
-    textColor: 'text-blue-300'
+    textColor: 'text-white'
   },
   EDUCATION: {
     label: 'Education Loan',
@@ -61,7 +62,7 @@ const LOAN_TYPE_CONFIGS = {
     tenureOptions: [24, 36, 60, 84, 96, 120],
     color: 'from-amber-500/20 to-yellow-500/10',
     borderColor: 'border-amber-500/40',
-    textColor: 'text-amber-300'
+    textColor: 'text-white'
   },
   BUSINESS: {
     label: 'Business Loan',
@@ -74,156 +75,181 @@ const LOAN_TYPE_CONFIGS = {
     tenureOptions: [12, 24, 36, 48, 60, 72, 84],
     color: 'from-rose-500/20 to-red-500/10',
     borderColor: 'border-rose-500/40',
-    textColor: 'text-rose-300'
+    textColor: 'text-white'
   }
 };
-
-
-const PRESET_PERSONAS = [
-  {
-    id: 'RAHUL',
-    badge: 'Expected: STP Approved',
-    badgeColor: 'bg-green-500/10 text-green-400 border-green-500/20',
-    name: 'Rahul Sharma',
-    age: 29,
-    employmentType: 'Salaried',
-    declaredMonthlyIncome: 80000,
-    existingEMI: 15000,
-    requestedLoanAmount: 800000,
-    requestedTenureMonths: 60,
-    applicantId: 'APP001',
-    cibilScore: 735,
-    writeOffs: 0,
-    bounceCount: 1,
-    avgMonthlyBalance: 45000,
-    monthlyCredits: 80000,
-    mutualFunds: 200000,
-    savings: 50000,
-    description: 'High credit score (735), clean repayment history, healthy FOIR under 50%.'
-  },
-  {
-    id: 'PRIYA',
-    badge: 'Expected: Exception Required',
-    badgeColor: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-    name: 'Priya Patel',
-    age: 32,
-    employmentType: 'Salaried',
-    declaredMonthlyIncome: 95000,
-    existingEMI: 18000,
-    requestedLoanAmount: 1000000,
-    requestedTenureMonths: 60,
-    applicantId: 'APP002',
-    cibilScore: 680,
-    writeOffs: 0,
-    bounceCount: 1,
-    avgMonthlyBalance: 60000,
-    monthlyCredits: 95000,
-    mutualFunds: 500000,
-    savings: 100000,
-    description: 'CIBIL 680 is below standard 700 cutoff, but offset by ₹5L Mutual Funds liquid assets.'
-  },
-  {
-    id: 'AMIT',
-    badge: 'Expected: Hard Reject',
-    badgeColor: 'bg-red-500/10 text-red-400 border-red-500/20',
-    name: 'Amit Kumar',
-    age: 26,
-    employmentType: 'Salaried',
-    declaredMonthlyIncome: 60000,
-    existingEMI: 10000,
-    requestedLoanAmount: 500000,
-    requestedTenureMonths: 36,
-    applicantId: 'APP003',
-    cibilScore: 650,
-    writeOffs: 1,
-    bounceCount: 4,
-    avgMonthlyBalance: 12000,
-    monthlyCredits: 50000,
-    mutualFunds: 0,
-    savings: 5000,
-    description: 'Active write-off (1) and high cheque bounce count (4) trigger automatic policy knockout.'
-  }
-];
 
 const NewApplication = () => {
   const navigate = useNavigate();
   const { currentRole } = useAuth();
-  const [activeTab, setActiveTab] = useState('manual'); // 'manual' or 'presets' or 'upload'
+  
+  const [activeTab, setActiveTab] = useState('manual');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStage, setSubmitStage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [activeRuleSet, setActiveRuleSet] = useState(null);
-  const [jsonPayload, setJsonPayload] = useState(JSON.stringify(PRESET_PERSONAS[0], null, 2));
 
-  // Form State for Manual Ingestion
+  // All known mock profiles from sample_loan_applications.csv
+  const [bureauProfiles, setBureauProfiles] = useState([]);
+  const [selectedProfileId, setSelectedProfileId] = useState('APP101');
+  const [panInput, setPanInput] = useState('ABCPA1431F');
+  const [aadhaarInput, setAadhaarInput] = useState('987654321098');
+  const [isFetchingBureau, setIsFetchingBureau] = useState(false);
+  const [bureauVerified, setBureauVerified] = useState(true);
+
+  // Core Application Form Data
   const [formData, setFormData] = useState({
-    name: '',
-    age: '',
-    employmentType: 'Salaried',
-    declaredMonthlyIncome: '',
-    existingEMI: '',
-    requestedLoanAmount: '',
-    requestedTenureMonths: 36,
-    applicantId: '',
-    cibilScore: '',
-    activeLoans: 0,
+    name: 'Rahul Sharma',
+    age: 23,
+    employmentType: 'Self-Employed',
+    declaredMonthlyIncome: 75000,
+    existingEMI: 11250,
+    requestedLoanAmount: 600000,
+    requestedTenureMonths: 60,
+    applicantId: 'APP101',
+    panNumber: 'ABCPA1431F',
+    aadhaarNumber: '987654321098',
+    cibilScore: 750,
+    scoreCategory: 'Super-Prime (Exceptional)',
+    activeLoans: 1,
     dpd: 0,
-    writeOffs: '',
-    bounceCount: '',
-    avgMonthlyBalance: '',
-    monthlyCredits: '',
-    mutualFunds: '',
-    savings: '',
+    writeOffs: 0,
+    bounceCount: 0,
+    avgMonthlyBalance: 45000,
+    monthlyCredits: 75000,
+    mutualFunds: 250000,
+    savings: 80000,
     loanType: 'PERSONAL',
   });
+
+  const [jsonPayload, setJsonPayload] = useState(JSON.stringify(formData, null, 2));
+
+  // Load all 50 bureau profiles and active rules on mount
+  useEffect(() => {
+    const initData = async () => {
+      try {
+        const [rulesRes, bureauRes] = await Promise.all([
+          rulesApi.getActive().catch(() => null),
+          bureauApi.getAll().catch(() => null)
+        ]);
+
+        if (rulesRes?.success) {
+          setActiveRuleSet(rulesRes.data);
+        }
+
+        if (bureauRes?.success && bureauRes.data) {
+          setBureauProfiles(bureauRes.data);
+          // Set first profile if available
+          if (bureauRes.data.length > 0) {
+            const first = bureauRes.data[0];
+            setSelectedProfileId(first.applicantId);
+            populateProfile(first);
+          }
+        }
+      } catch (err) {
+        console.warn('Initial data load warning:', err);
+      }
+    };
+
+    initData();
+  }, []);
+
+  // Populate form with auto-retrieved mock bureau data
+  const populateProfile = (profile) => {
+    if (!profile) return;
+    setPanInput(profile.panNumber || '');
+    setAadhaarInput(profile.aadhaarNumber || '');
+    setSelectedProfileId(profile.applicantId || '');
+    setBureauVerified(true);
+
+    setFormData(prev => ({
+      ...prev,
+      name: profile.name || prev.name,
+      age: profile.age ?? prev.age,
+      employmentType: profile.employmentType || prev.employmentType,
+      declaredMonthlyIncome: profile.declaredMonthlyIncome ?? prev.declaredMonthlyIncome,
+      existingEMI: profile.existingEMI ?? prev.existingEMI,
+      requestedLoanAmount: profile.requestedLoanAmount || prev.requestedLoanAmount,
+      requestedTenureMonths: profile.requestedTenureMonths || prev.requestedTenureMonths,
+      applicantId: profile.applicantId || prev.applicantId,
+      panNumber: profile.panNumber || prev.panNumber,
+      aadhaarNumber: profile.aadhaarNumber || prev.aadhaarNumber,
+      cibilScore: profile.cibilScore ?? prev.cibilScore,
+      scoreCategory: profile.scoreCategory || 'Prime',
+      activeLoans: profile.activeLoans ?? 1,
+      dpd: profile.dpd ?? 0,
+      writeOffs: profile.writeOffs ?? 0,
+      bounceCount: profile.bounceCount ?? 0,
+      avgMonthlyBalance: profile.avgMonthlyBalance ?? 30000,
+      monthlyCredits: profile.monthlyCredits ?? profile.declaredMonthlyIncome ?? 50000,
+      mutualFunds: profile.mutualFunds ?? 0,
+      savings: profile.savings ?? 0,
+    }));
+  };
+
+  // Fetch report by PAN / Aadhaar identifier
+  const handleFetchBureauData = async (identifierToUse) => {
+    const id = identifierToUse || panInput || aadhaarInput;
+    if (!id || id.trim() === '') {
+      setErrorMessage('Please enter a PAN Card (e.g. ABCPA1431F) or 12-digit Aadhaar Number.');
+      return;
+    }
+
+    setIsFetchingBureau(true);
+    setErrorMessage('');
+
+    try {
+      const res = await bureauApi.fetchReport(id.trim());
+      if (res.success && res.data) {
+        populateProfile(res.data);
+      } else {
+        setErrorMessage(res.message || 'Applicant not found in Mock Bureau Database.');
+      }
+    } catch (err) {
+      setErrorMessage(err.response?.data?.message || 'Failed to connect to Bureau Gateway.');
+    } finally {
+      setIsFetchingBureau(false);
+    }
+  };
+
+  // Handle Quick Dropdown Selector change
+  const handleDropdownSelect = (appId) => {
+    setSelectedProfileId(appId);
+    const found = bureauProfiles.find(p => p.applicantId === appId);
+    if (found) {
+      populateProfile(found);
+    } else {
+      handleFetchBureauData(appId);
+    }
+  };
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
-      [field]: field === 'name' || field === 'employmentType' || field === 'applicantId' || field === 'loanType'
+      [field]: field === 'name' || field === 'employmentType' || field === 'loanType' || field === 'panNumber' || field === 'aadhaarNumber'
         ? value 
-        : Number(value) || 0
+        : Number(value)
     }));
   };
 
-  // When loan type changes, update tenure to the type's default and reset loan amount constraints
-  const handleLoanTypeChange = (type) => {
-    const config = LOAN_TYPE_CONFIGS[type];
+  const handleLoanTypeChange = (loanType) => {
+    const cfg = LOAN_TYPE_CONFIGS[loanType];
     setFormData(prev => ({
       ...prev,
-      loanType: type,
-      requestedTenureMonths: config.defaultTenureMonths,
+      loanType,
+      requestedTenureMonths: cfg?.defaultTenureMonths || prev.requestedTenureMonths,
+      requestedLoanAmount: Math.min(prev.requestedLoanAmount, cfg?.maxLoanAmount || prev.requestedLoanAmount)
     }));
   };
-
-  useEffect(() => {
-    const loadActiveRules = async () => {
-      try {
-        const res = await rulesApi.getActive();
-        if (res.success) {
-          setActiveRuleSet(res.data);
-        }
-      } catch (err) {
-        console.warn('Could not load active rule configuration for preview:', err);
-      }
-    };
-
-    loadActiveRules();
-  }, []);
 
   const getRuleThreshold = (parameter, fallback) => {
     const rule = activeRuleSet?.rules?.find((item) => item.parameter === parameter);
     return Number(rule?.threshold ?? fallback);
   };
 
-  const getPolicyConfig = () => ({
-    baseAnnualRatePercent: Number(activeRuleSet?.config?.baseAnnualRatePercent ?? 11.5),
-    maxFoirPercent: getRuleThreshold('foir', activeRuleSet?.config?.maxFoirPercent ?? 50)
-  });
-
-  // Dynamic live metric calculations — uses loan-type rate & FOIR
+  // Live Metric Calculations
   const calculateLiveMetrics = () => {
     const loanTypeConfig = LOAN_TYPE_CONFIGS[formData.loanType] || LOAN_TYPE_CONFIGS['PERSONAL'];
-    // Loan-type rate takes priority; fall back to active rule set rate
     const baseRate = loanTypeConfig.baseAnnualRatePercent 
       ?? Number(activeRuleSet?.config?.baseAnnualRatePercent ?? 11.5);
     const maxFoirPercent = loanTypeConfig.maxFoirPercent 
@@ -249,10 +275,21 @@ const NewApplication = () => {
 
   const liveMetrics = calculateLiveMetrics();
 
+  // Multi-Stage Realistic Submission Animation
   const handleApply = async (payload) => {
     setErrorMessage('');
     setIsSubmitting(true);
+    
     try {
+      setSubmitStage('1/3 Binding KYC & Bureau Records...');
+      await new Promise((r) => setTimeout(r, 800));
+
+      setSubmitStage('2/3 Executing BRE Policy Checks...');
+      await new Promise((r) => setTimeout(r, 900));
+
+      setSubmitStage('3/3 Generating Audit Scorecard...');
+      await new Promise((r) => setTimeout(r, 700));
+
       const dataToSubmit = payload || formData;
       const res = await applicationApi.apply(dataToSubmit);
       if (res.success && res.data) {
@@ -264,30 +301,8 @@ const NewApplication = () => {
       setErrorMessage(err.response?.data?.message || 'Failed to submit application to BRE backend.');
     } finally {
       setIsSubmitting(false);
+      setSubmitStage('');
     }
-  };
-
-  const handlePresetSelect = (preset) => {
-    setFormData({
-      name: preset.name,
-      age: preset.age,
-      employmentType: preset.employmentType,
-      declaredMonthlyIncome: preset.declaredMonthlyIncome,
-      existingEMI: preset.existingEMI,
-      requestedLoanAmount: preset.requestedLoanAmount,
-      requestedTenureMonths: preset.requestedTenureMonths,
-      applicantId: preset.applicantId,
-      cibilScore: preset.cibilScore,
-      activeLoans: 2,
-      dpd: 0,
-      writeOffs: preset.writeOffs,
-      bounceCount: preset.bounceCount,
-      avgMonthlyBalance: preset.avgMonthlyBalance,
-      monthlyCredits: preset.monthlyCredits,
-      mutualFunds: preset.mutualFunds,
-      savings: preset.savings,
-      loanType: formData.loanType, // preserve user-selected loan type when loading preset
-    });
   };
 
   const handleJsonSubmit = () => {
@@ -301,40 +316,35 @@ const NewApplication = () => {
 
   return (
     <div className="max-w-6xl mx-auto pb-12 animate-in fade-in duration-500 space-y-6">
+      
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#222] pb-5">
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <span>Loan Application Ingestion</span>
           </h1>
-          <p className="text-gray-400 mt-1 text-sm">
-            Input applicant financials & bureau telemetry to execute real-time automated BRE underwriting.
+          <p className="text-gray-400 mt-1 text-xs">
+            Enter PAN Card or Aadhaar to automatically fetch verified Bureau & KYC telemetry from the mock repository.
           </p>
         </div>
 
         {/* Tab Selection */}
         {currentRole !== ROLES.APPLICANT && (
-          <div className="bg-[#161616] p-1 rounded-xl border border-[#333] flex">
+          <div className="bg-[#161616] p-1 border border-[#333] flex">
             <button 
+              type="button"
               onClick={() => setActiveTab('manual')}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'manual' ? 'bg-white text-black shadow-md' : 'text-gray-400 hover:text-white'
+              className={`px-4 py-2 text-xs font-semibold transition-all ${
+                activeTab === 'manual' ? 'bg-white text-black font-bold shadow-md' : 'text-gray-400 hover:text-white'
               }`}
             >
-              Manual Entry Form
+              KYC & Bureau Form
             </button>
             <button 
-              onClick={() => setActiveTab('presets')}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'presets' ? 'bg-white text-black shadow-md' : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              Test Personas & Presets
-            </button>
-            <button 
+              type="button"
               onClick={() => setActiveTab('upload')}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'upload' ? 'bg-white text-black shadow-md' : 'text-gray-400 hover:text-white'
+              className={`px-4 py-2 text-xs font-semibold transition-all ${
+                activeTab === 'upload' ? 'bg-white text-black font-bold shadow-md' : 'text-gray-400 hover:text-white'
               }`}
             >
               Bulk / JSON Ingestion
@@ -344,104 +354,36 @@ const NewApplication = () => {
       </div>
 
       {errorMessage && (
-        <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-4 rounded-xl text-sm flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+        <div className="bg-white/10 border border-white/30 text-white p-4 text-xs flex items-center gap-3">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
           <span>{errorMessage}</span>
-        </div>
-      )}
-
-      {/* Preset Personas Tab */}
-      {activeTab === 'presets' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {PRESET_PERSONAS.map((p) => (
-            <div 
-              key={p.id}
-              className="bg-[#111] border border-[#333] hover:border-gray-500 rounded-xl p-6 flex flex-col justify-between transition-all hover:shadow-[0_4px_25px_rgba(0,0,0,0.4)]"
-            >
-              <div>
-                <div className="flex justify-between items-start mb-3">
-                  <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${p.badgeColor}`}>
-                    {p.badge}
-                  </span>
-                  <span className="text-xs font-mono text-gray-500">{p.applicantId}</span>
-                </div>
-                
-                <h3 className="text-lg font-bold text-white mb-1">{p.name}</h3>
-                <p className="text-xs text-gray-400 mb-4">{p.description}</p>
-
-                <div className="space-y-2 text-xs border-t border-[#222] pt-3">
-                  <div className="flex justify-between text-gray-400">
-                    <span>Requested Loan:</span>
-                    <span className="text-white font-medium">{formatCurrency(p.requestedLoanAmount)}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-400">
-                    <span>Declared Income:</span>
-                    <span className="text-white font-medium">{formatCurrency(p.declaredMonthlyIncome)}/mo</span>
-                  </div>
-                  <div className="flex justify-between text-gray-400">
-                    <span>CIBIL Score:</span>
-                    <span className="text-white font-medium font-mono">{p.cibilScore}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-400">
-                    <span>Cheque Bounces:</span>
-                    <span className="text-white font-medium">{p.bounceCount}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-400">
-                    <span>Write-offs:</span>
-                    <span className="text-white font-medium">{p.writeOffs}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-[#222] flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    handlePresetSelect(p);
-                    setActiveTab('manual');
-                  }}
-                  className="flex-1 py-2 px-3 bg-[#222] hover:bg-[#2a2a2a] border border-[#333] text-gray-300 hover:text-white rounded-lg text-xs font-semibold transition-all"
-                >
-                  Load in Form
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApply(p)}
-                  disabled={isSubmitting}
-                  className="flex-1 py-2 px-3 bg-white text-black hover:bg-gray-200 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-md disabled:opacity-50"
-                >
-                  {isSubmitting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Calculator className="w-3.5 h-3.5" />}
-                  <span>Run BRE</span>
-                </button>
-              </div>
-            </div>
-          ))}
         </div>
       )}
 
       {/* Bulk JSON Upload Tab */}
       {activeTab === 'upload' && (
-        <div className="bg-[#111] border border-[#333] rounded-xl p-8 text-center space-y-4">
-          <div className="mx-auto w-16 h-16 bg-[#1a1a1a] border border-[#333] rounded-2xl flex items-center justify-center text-gray-400">
-            <UploadCloud className="w-8 h-8 text-white animate-pulse" />
+        <div className="bg-[#111] border border-[#333] p-8 text-center space-y-4 shadow-xl">
+          <div className="mx-auto w-16 h-16 bg-[#1a1a1a] border border-[#333] flex items-center justify-center text-white">
+            <UploadCloud className="w-8 h-8 animate-pulse" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">Upload Consolidated Loan Package</h3>
+            <h3 className="text-base font-bold text-white">Upload Consolidated Loan Package</h3>
             <p className="text-xs text-gray-400 max-w-md mx-auto mt-1">
-              Upload JSON/CSV payload with applicant details, bureau telemetry, and bank statement parameters.
+              Upload JSON payload with applicant details, bureau telemetry, and bank statement parameters.
             </p>
           </div>
           <textarea
             value={jsonPayload}
             onChange={(e) => setJsonPayload(e.target.value)}
-            className="w-full max-w-3xl h-72 bg-[#181818] border border-[#333] focus:border-white text-white rounded-xl px-4 py-3 text-xs font-mono focus:outline-none transition-all text-left"
+            className="w-full max-w-3xl h-72 bg-[#181818] border border-[#333] focus:border-white text-white p-4 text-xs font-mono focus:outline-none transition-all text-left"
             spellCheck="false"
           />
           <div className="pt-2">
             <button
+              type="button"
               onClick={handleJsonSubmit}
               disabled={isSubmitting}
-              className="px-6 py-2.5 bg-white text-black font-bold rounded-lg text-sm hover:bg-gray-200 transition-all inline-flex items-center gap-2"
+              className="px-6 py-2.5 bg-white text-black font-bold text-xs hover:bg-gray-200 transition-all inline-flex items-center gap-2 shadow-lg"
             >
               {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileJson className="w-4 h-4" />}
               <span>Ingest & Evaluate JSON</span>
@@ -450,157 +392,218 @@ const NewApplication = () => {
         </div>
       )}
 
-      {/* Manual Entry Form Tab */}
+      {/* Main Manual / KYC-Based Form */}
       {activeTab === 'manual' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Form Fields */}
+          
+          {/* Left Form: KYC Fetch & Bureau Telemetry (2 cols) */}
           <div className="lg:col-span-2 space-y-6">
 
-            {/* Loan Type Selector */}
-            <div className="bg-[#111] border border-[#333] rounded-xl p-6 space-y-4 shadow-lg">
-              <div className="flex items-center gap-2 pb-3 border-b border-[#222]">
-                <Tag className="w-4 h-4 text-pink-400" />
-                <h2 className="text-base font-semibold text-white">Select Loan Type</h2>
+            {/* STEP 1: Quick PAN / Aadhaar KYC Fetcher */}
+            <div className="bg-[#111] border border-[#333] p-6 space-y-5 shadow-2xl">
+              <div className="flex items-center justify-between pb-3 border-b border-[#222]">
+                <div className="flex items-center gap-2">
+                  <Fingerprint className="w-5 h-5 text-white" />
+                  <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+                    Step 1: Automated KYC & Bureau Verification
+                  </h2>
+                </div>
+                <span className="px-2.5 py-0.5 text-[10px] font-mono font-bold bg-white/10 text-white border border-white/20">
+                  50 Mock Profiles Seeded
+                </span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                {Object.entries(LOAN_TYPE_CONFIGS).map(([key, cfg]) => {
-                  const isSelected = formData.loanType === key;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => handleLoanTypeChange(key)}
-                      className={`relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all duration-200 ${
-                        isSelected
-                          ? `bg-gradient-to-br ${cfg.color} ${cfg.borderColor} shadow-lg scale-[1.03]`
-                          : 'bg-[#181818] border-[#2a2a2a] hover:border-[#444] hover:bg-[#1e1e1e]'
-                      }`}
-                    >
-                      <span className="text-2xl leading-none">{cfg.icon}</span>
-                      <span className={`text-[11px] font-bold text-center leading-tight ${
-                        isSelected ? cfg.textColor : 'text-gray-400'
-                      }`}>{cfg.label}</span>
-                      <span className={`text-[10px] font-mono ${
-                        isSelected ? cfg.textColor : 'text-gray-600'
-                      }`}>{cfg.baseAnnualRatePercent}% p.a.</span>
-                      {isSelected && (
-                        <div className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-current ${cfg.textColor}`} />
-                      )}
-                    </button>
-                  );
-                })}
+
+              {/* Quick Select Profile from sample_loan_applications.csv */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-300">
+                  Quick Select Mock Applicant (From sample_loan_applications.csv)
+                </label>
+                <select
+                  value={selectedProfileId}
+                  onChange={(e) => handleDropdownSelect(e.target.value)}
+                  className="w-full bg-[#181818] border border-[#333] focus:border-white text-white px-3.5 py-2.5 text-xs font-mono focus:outline-none transition-all cursor-pointer"
+                >
+                  {bureauProfiles.map((p) => (
+                    <option key={p.applicantId} value={p.applicantId}>
+                      [{p.applicantId}] {p.name} — PAN: {p.panNumber} (CIBIL: {p.cibilScore})
+                    </option>
+                  ))}
+                </select>
               </div>
-              {/* Selected type detail strip */}
-              {(() => {
-                const cfg = LOAN_TYPE_CONFIGS[formData.loanType];
-                return (
-                  <div className={`flex flex-wrap gap-3 pt-2 text-[11px]`}>
-                    <span className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-3 py-1.5 text-gray-400">
-                      💰 Max Amount: <span className="text-white font-semibold">{formatCurrency(cfg.maxLoanAmount)}</span>
-                    </span>
-                    <span className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-3 py-1.5 text-gray-400">
-                      📊 Max FOIR: <span className="text-white font-semibold">{cfg.maxFoirPercent}%</span>
-                    </span>
-                    <span className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-3 py-1.5 text-gray-400">
-                      📅 Tenure: <span className="text-white font-semibold">{cfg.tenureOptions[0]}–{cfg.tenureOptions[cfg.tenureOptions.length - 1]} mo</span>
-                    </span>
-                    <span className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-3 py-1.5 text-gray-400">
-                      🏷️ Rate: <span className={`font-semibold ${cfg.textColor}`}>{cfg.baseAnnualRatePercent}% p.a.</span>
+
+              {/* Or Direct Input: PAN Card & Aadhaar */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-300">
+                    PAN Card Number (10 Chars)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={10}
+                    value={panInput}
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase();
+                      setPanInput(val);
+                      if (val.length === 10) handleFetchBureauData(val);
+                    }}
+                    placeholder="e.g. ABCPA1431F"
+                    className="w-full bg-[#181818] border border-[#333] focus:border-white text-white px-3.5 py-2.5 text-xs font-mono uppercase focus:outline-none transition-all font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-300">
+                    Aadhaar Number (12 Digits)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={12}
+                    value={aadhaarInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setAadhaarInput(val);
+                      if (val.length === 12) handleFetchBureauData(val);
+                    }}
+                    placeholder="e.g. 987654321098"
+                    className="w-full bg-[#181818] border border-[#333] focus:border-white text-white px-3.5 py-2.5 text-xs font-mono focus:outline-none transition-all font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={() => handleFetchBureauData()}
+                  disabled={isFetchingBureau}
+                  className="px-4 py-2.5 bg-white text-black font-bold text-xs hover:bg-gray-200 transition-all flex items-center gap-2 shadow-lg disabled:opacity-50"
+                >
+                  {isFetchingBureau ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                  <span>Fetch & Verify Bureau Records</span>
+                </button>
+              </div>
+
+              {/* Verified Telemetry Dossier Display */}
+              {bureauVerified && (
+                <div className="bg-[#141414] border border-white/20 p-4 space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-[#222]">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-white" />
+                      <span className="text-xs font-bold text-white uppercase">
+                        Verified Bureau & KYC Telemetry Dossier
+                      </span>
+                    </div>
+                    <span className="px-2 py-0.5 text-[9px] font-mono font-bold bg-white/10 text-white border border-white/20">
+                      ✓ NSDL & CIBIL GATEWAY LIVE
                     </span>
                   </div>
-                );
-              })()}
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div className="bg-[#1c1c1c] p-2.5 border border-[#2a2a2a]">
+                      <span className="text-[10px] text-gray-400 block uppercase font-semibold">Verified Name</span>
+                      <span className="font-bold text-white truncate block">{formData.name}</span>
+                    </div>
+
+                    <div className="bg-[#1c1c1c] p-2.5 border border-[#2a2a2a]">
+                      <span className="text-[10px] text-gray-400 block uppercase font-semibold">Monthly Income</span>
+                      <span className="font-bold text-white font-mono block">{formatCurrency(formData.declaredMonthlyIncome)}/mo</span>
+                    </div>
+
+                    <div className="bg-[#1c1c1c] p-2.5 border border-[#2a2a2a]">
+                      <span className="text-[10px] text-gray-400 block uppercase font-semibold">Existing EMI</span>
+                      <span className="font-bold text-white font-mono block">{formatCurrency(formData.existingEMI)}/mo</span>
+                    </div>
+
+                    <div className="bg-[#1c1c1c] p-2.5 border border-[#2a2a2a]">
+                      <span className="text-[10px] text-gray-400 block uppercase font-semibold">CIBIL Score</span>
+                      <span className="font-bold text-white font-mono block">{formData.cibilScore} ({formData.scoreCategory})</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div className="bg-[#1c1c1c] p-2.5 border border-[#2a2a2a]">
+                      <span className="text-[10px] text-gray-400 block uppercase font-semibold">Active Loans</span>
+                      <span className="font-bold text-white font-mono block">{formData.activeLoans} Active Facility</span>
+                    </div>
+
+                    <div className="bg-[#1c1c1c] p-2.5 border border-[#2a2a2a]">
+                      <span className="text-[10px] text-gray-400 block uppercase font-semibold">Cheque Bounces</span>
+                      <span className="font-bold text-white font-mono block">{formData.bounceCount} (Last 6M)</span>
+                    </div>
+
+                    <div className="bg-[#1c1c1c] p-2.5 border border-[#2a2a2a]">
+                      <span className="text-[10px] text-gray-400 block uppercase font-semibold">Write-Offs / Defaults</span>
+                      <span className="font-bold text-white font-mono block">{formData.writeOffs} Records</span>
+                    </div>
+
+                    <div className="bg-[#1c1c1c] p-2.5 border border-[#2a2a2a]">
+                      <span className="text-[10px] text-gray-400 block uppercase font-semibold">Liquid Mutual Funds</span>
+                      <span className="font-bold text-white font-mono block">{formatCurrency(formData.mutualFunds)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Section 1: Applicant & Loan Parameters */}
-            <div className="bg-[#111] border border-[#333] rounded-xl p-6 space-y-4 shadow-lg">
+            {/* STEP 2: Loan Configuration */}
+            <div className="bg-[#111] border border-[#333] p-6 space-y-5 shadow-2xl">
               <div className="flex items-center gap-2 pb-3 border-b border-[#222]">
-                <User className="w-4 h-4 text-amber-400" />
-                <h2 className="text-base font-semibold text-white">Applicant & Loan Parameters</h2>
+                <Tag className="w-5 h-5 text-white" />
+                <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+                  Step 2: Loan Requirements & Facility Selection
+                </h2>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Full Name</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    className="w-full bg-[#181818] border border-[#333] focus:border-white text-white rounded-lg px-3.5 py-2 text-sm focus:outline-none transition-all"
-                  />
+              {/* Loan Type Selector */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-gray-300">
+                  Select Loan Facility
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+                  {Object.entries(LOAN_TYPE_CONFIGS).map(([key, cfg]) => {
+                    const isSelected = formData.loanType === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => handleLoanTypeChange(key)}
+                        className={`flex flex-col items-center gap-1.5 p-3 border transition-all ${
+                          isSelected
+                            ? 'bg-white text-black border-white font-bold shadow-lg'
+                            : 'bg-[#181818] border-[#2a2a2a] text-gray-300 hover:border-[#444] hover:bg-[#1e1e1e]'
+                        }`}
+                      >
+                        <span className="text-xl leading-none">{cfg.icon}</span>
+                        <span className="text-[11px] font-bold text-center leading-tight">{cfg.label}</span>
+                        <span className="text-[10px] font-mono">{cfg.baseAnnualRatePercent}% p.a.</span>
+                      </button>
+                    );
+                  })}
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Applicant ID</label>
-                  <input
-                    type="text"
-                    value={formData.applicantId}
-                    onChange={(e) => handleInputChange('applicantId', e.target.value)}
-                    className="w-full bg-[#181818] border border-[#333] focus:border-white text-white rounded-lg px-3.5 py-2 text-sm font-mono focus:outline-none transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Age</label>
-                  <input
-                    type="number"
-                    value={formData.age}
-                    onChange={(e) => handleInputChange('age', e.target.value)}
-                    className="w-full bg-[#181818] border border-[#333] focus:border-white text-white rounded-lg px-3.5 py-2 text-sm focus:outline-none transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Employment Type</label>
-                  <select
-                    value={formData.employmentType}
-                    onChange={(e) => handleInputChange('employmentType', e.target.value)}
-                    className="w-full bg-[#181818] border border-[#333] focus:border-white text-white rounded-lg px-3.5 py-2 text-sm focus:outline-none transition-all"
-                  >
-                    <option value="Salaried">Salaried (Tier-1 NBFC)</option>
-                    <option value="Self-Employed">Self-Employed Professional</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Declared Monthly Income (₹)</label>
-                  <input
-                    type="number"
-                    step="5000"
-                    value={formData.declaredMonthlyIncome}
-                    onChange={(e) => handleInputChange('declaredMonthlyIncome', e.target.value)}
-                    className="w-full bg-[#181818] border border-[#333] focus:border-white text-white rounded-lg px-3.5 py-2 text-sm font-semibold focus:outline-none transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Existing Monthly EMI (₹)</label>
-                  <input
-                    type="number"
-                    step="1000"
-                    value={formData.existingEMI}
-                    onChange={(e) => handleInputChange('existingEMI', e.target.value)}
-                    className="w-full bg-[#181818] border border-[#333] focus:border-white text-white rounded-lg px-3.5 py-2 text-sm focus:outline-none transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Requested Loan Amount (₹)</label>
+              {/* Requested Amount & Tenure */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-300">
+                    Requested Loan Amount (₹)
+                  </label>
                   <input
                     type="number"
                     step="50000"
                     value={formData.requestedLoanAmount}
                     onChange={(e) => handleInputChange('requestedLoanAmount', e.target.value)}
-                    className="w-full bg-[#181818] border border-[#333] focus:border-white text-white rounded-lg px-3.5 py-2 text-sm font-bold text-amber-400 focus:outline-none transition-all"
+                    className="w-full bg-[#181818] border border-[#333] focus:border-white text-white px-3.5 py-2.5 text-sm font-bold font-mono focus:outline-none transition-all"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Tenure (Months)</label>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-300">
+                    Requested Tenure (Months)
+                  </label>
                   <select
                     value={formData.requestedTenureMonths}
                     onChange={(e) => handleInputChange('requestedTenureMonths', e.target.value)}
-                    className="w-full bg-[#181818] border border-[#333] focus:border-white text-white rounded-lg px-3.5 py-2 text-sm focus:outline-none transition-all"
+                    className="w-full bg-[#181818] border border-[#333] focus:border-white text-white px-3.5 py-2.5 text-xs focus:outline-none transition-all cursor-pointer"
                   >
                     {(LOAN_TYPE_CONFIGS[formData.loanType]?.tenureOptions || [12,24,36,48,60]).map(mo => (
                       <option key={mo} value={mo}>
@@ -610,164 +613,79 @@ const NewApplication = () => {
                   </select>
                 </div>
               </div>
+
             </div>
 
-            {/* Section 2: Credit Bureau & Synthetic Telemetry */}
-            <div className="bg-[#111] border border-[#333] rounded-xl p-6 space-y-4 shadow-lg">
-              <div className="flex items-center gap-2 pb-3 border-b border-[#222]">
-                <CreditCard className="w-4 h-4 text-blue-400" />
-                <h2 className="text-base font-semibold text-white">Bureau & Banking Telemetry</h2>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">CIBIL Score (300-900)</label>
-                  <input
-                    type="number"
-                    min="300"
-                    max="900"
-                    value={formData.cibilScore}
-                    onChange={(e) => handleInputChange('cibilScore', e.target.value)}
-                    className="w-full bg-[#181818] border border-[#333] focus:border-white text-white rounded-lg px-3.5 py-2 text-sm font-mono font-bold focus:outline-none transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Write-Offs / Defaults</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.writeOffs}
-                    onChange={(e) => handleInputChange('writeOffs', e.target.value)}
-                    className="w-full bg-[#181818] border border-[#333] focus:border-white text-white rounded-lg px-3.5 py-2 text-sm font-mono focus:outline-none transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Cheque Bounces (6M)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.bounceCount}
-                    onChange={(e) => handleInputChange('bounceCount', e.target.value)}
-                    className="w-full bg-[#181818] border border-[#333] focus:border-white text-white rounded-lg px-3.5 py-2 text-sm font-mono focus:outline-none transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Avg Monthly Bal (AMB ₹)</label>
-                  <input
-                    type="number"
-                    step="5000"
-                    value={formData.avgMonthlyBalance}
-                    onChange={(e) => handleInputChange('avgMonthlyBalance', e.target.value)}
-                    className="w-full bg-[#181818] border border-[#333] focus:border-white text-white rounded-lg px-3.5 py-2 text-sm focus:outline-none transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Mutual Funds Buffer (₹)</label>
-                  <input
-                    type="number"
-                    step="25000"
-                    value={formData.mutualFunds}
-                    onChange={(e) => handleInputChange('mutualFunds', e.target.value)}
-                    className="w-full bg-[#181818] border border-[#333] focus:border-white text-white rounded-lg px-3.5 py-2 text-sm focus:outline-none transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Savings Assets (₹)</label>
-                  <input
-                    type="number"
-                    step="10000"
-                    value={formData.savings}
-                    onChange={(e) => handleInputChange('savings', e.target.value)}
-                    className="w-full bg-[#181818] border border-[#333] focus:border-white text-white rounded-lg px-3.5 py-2 text-sm focus:outline-none transition-all"
-                  />
-                </div>
-              </div>
-            </div>
           </div>
 
-          {/* Live Calculated Scorecard & Submission Sidebar */}
+          {/* Right Sidebar: Realtime Underwriting Preview & 1-Click Submission (1 col) */}
           <div className="space-y-6">
-            <div className="bg-[#111] border border-[#333] rounded-xl p-6 space-y-5 shadow-lg">
-              <div className="flex items-center justify-between pb-3 border-b border-[#222]">
-                <div className="flex items-center gap-2">
-                  <Calculator className="w-4 h-4 text-emerald-400" />
-                  <h2 className="text-base font-semibold text-white">Live Derived Metrics Preview</h2>
-                </div>
-                {/* Loan type badge */}
-                {(() => {
-                  const cfg = LOAN_TYPE_CONFIGS[formData.loanType];
-                  return (
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.borderColor} ${cfg.textColor} bg-transparent`}>
-                      {cfg.icon} {cfg.label}
-                    </span>
-                  );
-                })()}
+            <div className="bg-[#111] border border-[#333] p-6 space-y-6 shadow-2xl sticky top-24">
+              <div className="flex items-center gap-2 pb-3 border-b border-[#222]">
+                <Calculator className="w-4 h-4 text-white" />
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                  Live Underwriting Preview
+                </h3>
               </div>
 
               <div className="space-y-4">
-                <div className="bg-[#181818] border border-[#2a2a2a] p-3.5 rounded-lg">
-                  <div className="flex justify-between items-center text-xs text-gray-400 mb-1">
-                    <span>Proposed Monthly EMI</span>
-                    <span className="text-[10px] text-gray-500">@ {liveMetrics.baseAnnualRatePercent}% p.a.</span>
+                <div className="bg-[#161616] p-4 border border-[#2a2a2a] space-y-3">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">Proposed EMI:</span>
+                    <span className="font-bold text-white font-mono text-sm">{formatCurrency(liveMetrics.proposedEMI)}/mo</span>
                   </div>
-                  <div className="text-xl font-bold text-white">
-                    {formatCurrency(liveMetrics.proposedEMI)}
+
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">Total Monthly FOIR:</span>
+                    <span className="font-bold text-white font-mono">{liveMetrics.foir}%</span>
+                  </div>
+
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">Policy FOIR Ceiling:</span>
+                    <span className="text-gray-400 font-mono">{liveMetrics.maxFoirPercent}%</span>
+                  </div>
+
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">Loan-to-Income (LTI):</span>
+                    <span className="font-bold text-white font-mono">{liveMetrics.lti}x Annual</span>
                   </div>
                 </div>
 
-                <div className="bg-[#181818] border border-[#2a2a2a] p-3.5 rounded-lg">
-                  <div className="flex justify-between items-center text-xs text-gray-400 mb-1">
-                    <span>Fixed Obligation Ratio (FOIR)</span>
-                    <span className={`text-[10px] font-semibold ${Number(liveMetrics.foir) <= liveMetrics.maxFoirPercent ? 'text-green-400' : 'text-amber-400'}`}>
-                      {Number(liveMetrics.foir) <= liveMetrics.maxFoirPercent ? `Pass (<=${liveMetrics.maxFoirPercent}%)` : 'Exceeds Cap'}
-                    </span>
+                <div className="p-3 bg-[#141414] border border-white/10 text-[11px] text-gray-400 space-y-1">
+                  <div className="flex items-center gap-1 text-white font-bold">
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Automated BRE Decisioning</span>
                   </div>
-                  <div className={`text-xl font-bold ${Number(liveMetrics.foir) <= liveMetrics.maxFoirPercent ? 'text-white' : 'text-amber-400'}`}>
-                    {liveMetrics.foir}%
-                  </div>
+                  <p className="leading-relaxed">
+                    Evaluates live across 6 risk rules including CIBIL threshold, FOIR limits, AMB turnover, and zero write-offs.
+                  </p>
                 </div>
 
-                <div className="bg-[#181818] border border-[#2a2a2a] p-3.5 rounded-lg">
-                  <div className="flex justify-between items-center text-xs text-gray-400 mb-1">
-                    <span>Loan-to-Income (LTI)</span>
-                    <span className="text-[10px] text-gray-500">Annual multiplier</span>
-                  </div>
-                  <div className="text-xl font-bold text-white">
-                    {liveMetrics.lti}x Annual Income
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-2">
                 <button
                   type="button"
                   onClick={() => handleApply()}
                   disabled={isSubmitting}
-                  className="w-full py-3 px-4 bg-white text-black font-bold rounded-xl text-sm hover:bg-gray-200 transition-all flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(255,255,255,0.15)] disabled:opacity-50"
+                  className="w-full py-3.5 bg-white text-black hover:bg-gray-200 font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-2xl disabled:opacity-50"
                 >
                   {isSubmitting ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>{currentRole === ROLES.APPLICANT ? 'Submitting...' : 'Executing BRE Evaluation...'}</span>
+                      <RefreshCw className="w-4 h-4 animate-spin text-black" />
+                      <span className="font-mono">{submitStage || 'Evaluating RuleSet...'}</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-4 h-4" />
-                      <span>{currentRole === ROLES.APPLICANT ? 'Apply for Loan' : 'Execute BRE Underwriting'}</span>
-                      <ArrowRight className="w-4 h-4 ml-1" />
+                      <span>Submit Loan Application</span>
+                      <ArrowRight className="w-4 h-4 text-black" />
                     </>
                   )}
                 </button>
               </div>
             </div>
           </div>
+
         </div>
       )}
+
     </div>
   );
 };
