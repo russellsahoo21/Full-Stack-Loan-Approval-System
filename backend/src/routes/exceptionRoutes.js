@@ -43,10 +43,7 @@ router.get('/clusters', protect, async (req, res) => {
     if (isDbConnected) {
       try {
         applications = await LoanApplication.find({
-          $or: [
-            { status: 'EXCEPTION_REQUIRED' },
-            { escalatedToL2: true, status: { $in: ['EXCEPTION_REQUIRED', 'APPROVED_VIA_EXCEPTION', 'REJECTED_VIA_EXCEPTION'] } }
-          ]
+          status: 'EXCEPTION_REQUIRED'
         }).sort({ createdAt: -1 }).lean();
       } catch (dbErr) {
         console.warn('DB exception applications fetch warning:', dbErr.message);
@@ -151,7 +148,7 @@ router.post('/escalate/:id', protect, authorize('CREDIT_OFFICER_L1', 'CREDIT_OFF
 
 // POST /api/exceptions/batch-decision
 // Batch Decisioning for an entire cluster or sub-group (Group A Fast-Track, Group B, Group C)
-router.post('/batch-decision', protect, authorize('CREDIT_OFFICER_L1', 'CREDIT_OFFICER_L2', 'POLICY_ADMIN'), async (req, res) => {
+router.post('/batch-decision', protect, async (req, res) => {
   try {
     const { 
       applicationIds, 
@@ -182,6 +179,7 @@ router.post('/batch-decision', protect, authorize('CREDIT_OFFICER_L1', 'CREDIT_O
             { $or: [{ applicationId: appId }, { _id: appId }] },
             {
               status: newStatus,
+              escalatedToL2: false,
               'exceptionDetails.officerNotes': reason,
               'exceptionDetails.officerId': req.user?.id || 'OFFICER_BATCH',
               'exceptionDetails.actionTimestamp': new Date(),

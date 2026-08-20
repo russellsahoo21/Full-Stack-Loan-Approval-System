@@ -227,9 +227,9 @@ export const buildExceptionClusters = (applications, profilesMap = {}) => {
     };
   });
 
-  // Filter only applications requiring exception review or pending L2 escalation
+  // Filter only applications currently pending exception review
   const exceptionApps = applications.filter((app) => 
-    app.status === 'EXCEPTION_REQUIRED' || app.escalatedToL2 === true
+    app.status === 'EXCEPTION_REQUIRED'
   );
 
   exceptionApps.forEach((app) => {
