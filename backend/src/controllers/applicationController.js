@@ -1,8 +1,18 @@
+import mongoose from 'mongoose';
 import { LoanApplication } from '../models/LoanApplication.js';
 import { ApplicantProfile } from '../models/ApplicantProfile.js';
 import { RuleSet } from '../models/RuleSet.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { runBRE } from '../bre/engine.js';
+
+// Helper to look up by either MongoDB ObjectId or custom applicationId (e.g. LOAN1001)
+const findApplicationByIdOrCustomId = async (id) => {
+  const isObjectId = mongoose.Types.ObjectId.isValid(id) && String(new mongoose.Types.ObjectId(id)) === id;
+  if (isObjectId) {
+    return await LoanApplication.findOne({ $or: [{ applicationId: id }, { _id: id }] });
+  }
+  return await LoanApplication.findOne({ applicationId: id });
+};
 
 export const submitLoanApplication = async (req, res) => {
   try {
@@ -116,9 +126,7 @@ export const getAllApplications = async (req, res) => {
 export const getApplicationById = async (req, res) => {
   try {
     const { id } = req.params;
-    const application = await LoanApplication.findOne({ 
-      $or: [{ applicationId: id }, { _id: id }] 
-    });
+    const application = await findApplicationByIdOrCustomId(id);
 
     if (!application) {
       return res.status(404).json({ success: false, message: 'Application not found' });
@@ -142,9 +150,7 @@ export const getApplicationById = async (req, res) => {
 export const evaluateApplicationUnderVersion = async (req, res) => {
   try {
     const { id, targetVersion } = req.params;
-    const application = await LoanApplication.findOne({ 
-      $or: [{ applicationId: id }, { _id: id }] 
-    });
+    const application = await findApplicationByIdOrCustomId(id);
 
     if (!application) {
       return res.status(404).json({ success: false, message: 'Application not found' });
@@ -196,9 +202,7 @@ export const handleExceptionDecision = async (req, res) => {
     const { id } = req.params;
     const { action, officerNotes } = req.body; // action: 'APPROVE' or 'REJECT'
 
-    const application = await LoanApplication.findOne({ 
-      $or: [{ applicationId: id }, { _id: id }] 
-    });
+    const application = await findApplicationByIdOrCustomId(id);
 
     if (!application) {
       return res.status(404).json({ success: false, message: 'Application not found' });
