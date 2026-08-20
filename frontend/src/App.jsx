@@ -16,6 +16,7 @@ import AuditLogsPage from './pages/AuditLogsPage';
 import AiCopilotPage from './pages/AiCopilotPage';
 import AiStressTestingPage from './pages/AiStressTestingPage';
 import AiPricingOptimizerPage from './pages/AiPricingOptimizerPage';
+import MacroBenchmarkStudio from './pages/MacroBenchmarkStudio';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
@@ -172,6 +173,15 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.L1, ROLES.L2]}>
                   <AiPricingOptimizerPage />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/macro-benchmarks" 
+              element={
+                <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT]}>
+                  <MacroBenchmarkStudio />
                 </ProtectedRoute>
               } 
             />

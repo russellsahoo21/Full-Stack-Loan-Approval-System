@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { maskPAN, maskMobile, maskAccountNumber, formatCurrency } from '../utils/masking';
 import { useNavigate } from 'react-router-dom';
-import { applicationApi, rulesApi, bureauApi, extractApi } from '../services/api';
+import { applicationApi, rulesApi, bureauApi, extractApi, macroApi } from '../services/api';
 import { useAuth, ROLES } from '../context/AuthContext';
 
 // Mirrors backend policy.js LOAN_TYPE_CONFIGS
@@ -134,17 +134,24 @@ const NewApplication = () => {
 
   const [jsonPayload, setJsonPayload] = useState(JSON.stringify(formData, null, 2));
 
-  // Load all 50 bureau profiles and active rules on mount
+  const [macroRates, setMacroRates] = useState(null);
+
+  // Load all 50 bureau profiles, active rules, and macro benchmark on mount
   useEffect(() => {
     const initData = async () => {
       try {
-        const [rulesRes, bureauRes] = await Promise.all([
+        const [rulesRes, bureauRes, macroRes] = await Promise.all([
           rulesApi.getActive().catch(() => null),
-          bureauApi.getAll().catch(() => null)
+          bureauApi.getAll().catch(() => null),
+          macroApi.getCurrent().catch(() => null)
         ]);
 
         if (rulesRes?.success) {
           setActiveRuleSet(rulesRes.data);
+        }
+
+        if (macroRes?.success && macroRes.data?.facilityRates) {
+          setMacroRates(macroRes.data.facilityRates);
         }
 
         if (bureauRes?.success && Array.isArray(bureauRes.data)) {
@@ -873,6 +880,7 @@ const NewApplication = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
                   {Object.entries(LOAN_TYPE_CONFIGS).map(([key, cfg]) => {
                     const isSelected = formData.loanType === key;
+                    const dynamicRate = macroRates?.[key]?.finalBaseRate || cfg.baseAnnualRatePercent;
                     return (
                       <button
                         key={key}
@@ -886,7 +894,7 @@ const NewApplication = () => {
                       >
                         <span className="text-xl leading-none">{cfg.icon}</span>
                         <span className="text-[11px] font-bold text-center leading-tight">{cfg.label}</span>
-                        <span className="text-[10px] font-mono">{cfg.baseAnnualRatePercent}% p.a.</span>
+                        <span className="text-[10px] font-mono">EBLR {dynamicRate}% p.a.</span>
                       </button>
                     );
                   })}

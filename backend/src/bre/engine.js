@@ -1,4 +1,8 @@
 import { DEFAULT_POLICY_CONFIG, REQUIRED_PROFILE_FIELDS, LOAN_TYPE_CONFIGS } from './policy.js';
+import { 
+  calculateDynamicBorrowerAPR, 
+  getMacroBenchmark 
+} from '../services/macroBenchmarkService.js';
 
 export const calculateDerivedMetrics = (profile, requestedLoanAmount, requestedTenureMonths, policyConfig = DEFAULT_POLICY_CONFIG) => {
   const annualRate = (policyConfig?.baseAnnualRatePercent || DEFAULT_POLICY_CONFIG.baseAnnualRatePercent) / 100;
@@ -327,14 +331,24 @@ export const runBRE = (profile, requestedLoanAmount, requestedTenureMonths, rule
     exceptionLevel = 'L1';
   }
 
-  // Pricing & Eligibility Calculation
+  // Dynamic EBLR Repo-Linked Pricing & Eligibility Calculation
+  const dynamicPricing = calculateDynamicBorrowerAPR({
+    loanType,
+    cibilScore: profile.cibilScore || 750,
+    foir: Number(derivedMetrics.foir) || 40,
+    isNtc,
+    alternateScore: alternateData.totalScore,
+    writeOffs: profile.writeOffs || 0,
+    bounceCount: profile.bounceCount || 0
+  });
+
   const pricingBand = findPricingBand(policyConfig, parameterValues);
   let riskGrade = pricingBand.riskGrade;
-  let interestRatePercent = pricingBand.interestRatePercent;
+  let interestRatePercent = dynamicPricing.finalApr;
+  const currentMacro = getMacroBenchmark();
 
   if (isNtc) {
     riskGrade = 'NTC Prime (Alternate Cashflow Engine)';
-    interestRatePercent = 13.5;
   }
 
   const maxAllowableEMI = ((policyConfig.maxFoirPercent || 50) / 100) * profile.declaredMonthlyIncome;
@@ -368,13 +382,14 @@ export const runBRE = (profile, requestedLoanAmount, requestedTenureMonths, rule
     `⚡ Alternate Trust Score: ${alternateData.totalScore}/100 (Cashflow Verified)`,
     `💰 UPI Velocity: ₹${(profile.upiMonthlyCredits || profile.monthlyCredits || profile.declaredMonthlyIncome || 0).toLocaleString()}/mo`,
     `🛡️ Safe Credit Cap: ₹1,50,000 (Thin-File Guardrail)`,
-    `Risk Band: ${riskGrade} (${interestRatePercent}% interest)`
+    `🏛️ RBI EBLR Linked Rate: ${interestRatePercent}% p.a. (Repo ${dynamicPricing.repoRate}% + ${dynamicPricing.baseSpread}% Spread)`,
+    `Risk Band: ${riskGrade}`
   ] : [
     `CIBIL Score: ${profile.cibilScore}`,
     `FOIR: ${derivedMetrics.foir}% (Max allowable 50%)`,
     `Income Trend: ${derivedMetrics.incomeTrendPercent >= 0 ? '+' : ''}${derivedMetrics.incomeTrendPercent}%`,
-    `Write-offs: ${profile.writeOffs}`,
-    `Risk Band: ${riskGrade} (${interestRatePercent}% interest)`,
+    `🏛️ RBI EBLR Linked Rate: ${interestRatePercent}% p.a. (Repo ${dynamicPricing.repoRate}% + ${dynamicPricing.baseSpread}% Spread)`,
+    `Risk Band: ${riskGrade}`,
     `Underwriting Risk Index: ${riskScore}%`
   ];
 
@@ -408,6 +423,15 @@ export const runBRE = (profile, requestedLoanAmount, requestedTenureMonths, rule
       riskGrade,
       riskScore,
       interestRatePercent,
+      eblrPricing: dynamicPricing,
+      macroBenchmark: {
+        rbiRepoRate: currentMacro.rbiRepoRate,
+        cpiInflation: currentMacro.cpiInflationRate,
+        gSec10Y: currentMacro.gSec10YYield,
+        mclr1Y: currentMacro.mclr1Year,
+        riskWeight: currentMacro.rbiUnsecuredRiskWeight,
+        eblrFormula: dynamicPricing.eblrFormula
+      },
       maxEligibleLoanAmount,
       whySummaryBadges,
       missingCriticalFields,

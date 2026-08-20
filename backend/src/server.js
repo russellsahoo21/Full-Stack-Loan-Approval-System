@@ -11,6 +11,7 @@ import bureauRoutes from './routes/bureauRoutes.js';
 import exceptionRoutes from './routes/exceptionRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import extractRoutes from './routes/extractRoutes.js';
+import macroRoutes from './routes/macroRoutes.js';
 
 dotenv.config();
 
@@ -39,6 +40,7 @@ app.use('/api/bureau', bureauRoutes);
 app.use('/api/exceptions', exceptionRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/extract-statement', extractRoutes);
+app.use('/api/macro', macroRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

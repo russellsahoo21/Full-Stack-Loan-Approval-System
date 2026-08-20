@@ -205,4 +205,24 @@ export const healthApi = {
   },
 };
 
+// Macroeconomic Market & RBI Repo Benchmark Endpoints
+export const macroApi = {
+  getCurrent: async () => {
+    const res = await api.get('/macro/current');
+    return res.data;
+  },
+  updateBenchmark: async (payload) => {
+    const res = await api.post('/macro/update-benchmark', payload);
+    return res.data;
+  },
+  reset: async () => {
+    const res = await api.post('/macro/reset');
+    return res.data;
+  },
+  calculateApr: async (payload) => {
+    const res = await api.post('/macro/calculate-apr', payload);
+    return res.data;
+  }
+};
+
 export default api;

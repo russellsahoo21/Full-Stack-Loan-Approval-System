@@ -4,8 +4,9 @@ import {
   FileText, List, Settings, ShieldAlert, LayoutDashboard, 
   ChevronDown, User, LogOut, Menu, Sparkles, History, 
   Database, Layers, Check, BrainCircuit, Bot, Activity, 
-  ShieldCheck, Percent, Zap
+  ShieldCheck, Percent, Zap, Landmark
 } from 'lucide-react';
+import MacroMarketTicker from '../components/MacroMarketTicker';
 import { useAuth, ROLES, ROLE_LABELS } from '../context/AuthContext';
 import clsx from 'clsx';
 
@@ -83,6 +84,12 @@ const MainLayout = () => {
           path: '/admin/rules', 
           icon: Settings, 
           roles: [ROLES.ADMIN] 
+        },
+        { 
+          name: 'Macro Benchmarks & Repo', 
+          path: '/macro-benchmarks', 
+          icon: Landmark, 
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT] 
         },
         { 
           name: 'Synthetic Sandbox', 
@@ -212,6 +219,9 @@ const MainLayout = () => {
             </div>
           </div>
         </header>
+
+        {/* Live Macro Market & RBI Repo Ticker */}
+        <MacroMarketTicker />
 
         {/* Mobile Dropdown Menu */}
         {mobileMenuOpen && (
