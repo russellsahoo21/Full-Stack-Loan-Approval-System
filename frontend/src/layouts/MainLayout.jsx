@@ -68,12 +68,6 @@ const MainLayout = () => {
           roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
         },
         { 
-          name: 'Fraud Anomaly Radar', 
-          path: '/ai-fraud-radar', 
-          icon: ShieldAlert, 
-          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
-        },
-        { 
           name: 'Dynamic Pricing AI', 
           path: '/ai-pricing-optimizer', 
           icon: Percent, 

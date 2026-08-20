@@ -15,7 +15,6 @@ import SyntheticSandbox from './pages/SyntheticSandbox';
 import AuditLogsPage from './pages/AuditLogsPage';
 import AiCopilotPage from './pages/AiCopilotPage';
 import AiStressTestingPage from './pages/AiStressTestingPage';
-import AiFraudRadarPage from './pages/AiFraudRadarPage';
 import AiPricingOptimizerPage from './pages/AiPricingOptimizerPage';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
@@ -164,15 +163,6 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.L1, ROLES.L2]}>
                   <AiStressTestingPage />
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path="/ai-fraud-radar" 
-              element={
-                <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.L1, ROLES.L2]}>
-                  <AiFraudRadarPage />
                 </ProtectedRoute>
               } 
             />
