@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { RuleSet } from '../models/RuleSet.js';
 import { isDbConnected } from '../config/db.js';
 
@@ -6,6 +7,7 @@ const memoryRuleSets = [
   {
     version: 1,
     isActive: true,
+    status: 'ACTIVE',
     createdReason: 'Baseline NBFC Policy Rules (v1)',
     createdBy: 'Policy Admin',
     createdAt: new Date(),
@@ -20,9 +22,11 @@ const memoryRuleSets = [
   }
 ];
 
+const checkMongo = () => isDbConnected && mongoose.connection.readyState === 1;
+
 // Helper to get or auto-seed the active rule set
 const getOrCreateActiveRuleSet = async () => {
-  if (isDbConnected) {
+  if (checkMongo()) {
     try {
       let activeRuleSet = await RuleSet.findOne({ isActive: true });
       if (!activeRuleSet) {
@@ -56,6 +60,8 @@ const getOrCreateActiveRuleSet = async () => {
   return memoryRuleSets.find(r => r.isActive) || memoryRuleSets[0];
 };
 
+export const getActiveRuleSetDoc = getOrCreateActiveRuleSet;
+
 export const getActiveRuleSet = async (req, res) => {
   try {
     const activeRuleSet = await getOrCreateActiveRuleSet();
@@ -67,11 +73,10 @@ export const getActiveRuleSet = async (req, res) => {
 
 export const getAllRuleVersions = async (req, res) => {
   try {
-    if (isDbConnected) {
+    if (checkMongo()) {
       try {
         let versions = await RuleSet.find().sort({ version: -1 });
-        if (versions.length === 0) {
-          // Auto-seed Baseline v1
+        if (!versions || versions.length === 0) {
           const baseline = await getOrCreateActiveRuleSet();
           versions = [baseline];
         }
@@ -91,7 +96,7 @@ export const getRuleSetByVersion = async (req, res) => {
   try {
     const versionNum = Number(req.params.version);
 
-    if (isDbConnected) {
+    if (checkMongo()) {
       try {
         const ruleSet = await RuleSet.findOne({ version: versionNum });
         if (ruleSet) {
@@ -117,13 +122,13 @@ export const createNewRuleVersion = async (req, res) => {
   try {
     const { rules, createdReason, effectiveFrom } = req.body;
 
-    if (isDbConnected) {
-      try {
-        // Find latest version number
-        const latestSet = await RuleSet.findOne().sort({ version: -1 });
-        const nextVersion = latestSet ? latestSet.version + 1 : 1;
+    let nextVersion = 2;
 
-        // Archive all previous versions in MongoDB
+    if (checkMongo()) {
+      try {
+        const latestSet = await RuleSet.findOne().sort({ version: -1 });
+        nextVersion = latestSet ? latestSet.version + 1 : 1;
+
         await RuleSet.updateMany({ isActive: true }, { isActive: false, status: 'ARCHIVED' });
 
         const dbRuleSet = await RuleSet.create({
@@ -136,21 +141,25 @@ export const createNewRuleVersion = async (req, res) => {
           rules: rules || memoryRuleSets[0].rules
         });
 
+        // Sync to memory
+        memoryRuleSets.forEach(r => { r.isActive = false; r.status = 'ARCHIVED'; });
+        memoryRuleSets.unshift(dbRuleSet.toObject ? dbRuleSet.toObject() : dbRuleSet);
+
         return res.status(201).json({
           success: true,
           message: `Version v${nextVersion} activated successfully! Zero backend code changes needed.`,
           data: dbRuleSet
         });
       } catch (dbErr) {
-        console.warn('DB write fallback:', dbErr.message);
+        console.warn('DB write fallback in createNewRuleVersion:', dbErr.message);
       }
     }
 
     // Memory fallback
     const latestVersion = memoryRuleSets.length > 0 ? Math.max(...memoryRuleSets.map(r => r.version)) : 0;
-    const nextVersion = latestVersion + 1;
+    nextVersion = latestVersion + 1;
 
-    memoryRuleSets.forEach(r => r.isActive = false);
+    memoryRuleSets.forEach(r => { r.isActive = false; r.status = 'ARCHIVED'; });
     const newRuleSet = {
       version: nextVersion,
       isActive: true,
@@ -206,7 +215,8 @@ export const patchRuleAndCreateVersion = async (req, res) => {
       newThreshold: Number(newThreshold),
       oldActionOnFail: targetRule.actionOnFail,
       newActionOnFail: newActionOnFail || targetRule.actionOnFail,
-      changedBy: changedBy || req.user?.name || 'POLICY_ADMIN'
+      changedBy: changedBy || req.user?.name || 'POLICY_ADMIN',
+      timestamp: new Date()
     };
 
     // Clone all rules from current active, patching the changed one
@@ -233,7 +243,7 @@ export const patchRuleAndCreateVersion = async (req, res) => {
       };
     });
 
-    if (isDbConnected) {
+    if (checkMongo()) {
       try {
         // Find next version number
         const latestSet = await RuleSet.findOne().sort({ version: -1 });
@@ -242,7 +252,7 @@ export const patchRuleAndCreateVersion = async (req, res) => {
         // Archive current active
         await RuleSet.updateMany({ isActive: true }, { isActive: false, status: 'ARCHIVED' });
 
-        // Create new version with change log
+        // Create new version with change log in MongoDB
         const dbRuleSet = await RuleSet.create({
           version: nextVersion,
           isActive: true,
@@ -253,6 +263,10 @@ export const patchRuleAndCreateVersion = async (req, res) => {
           changeLog: [changeLogEntry],
           rules: patchedRules
         });
+
+        // Sync memory store
+        memoryRuleSets.forEach(r => { r.isActive = false; r.status = 'ARCHIVED'; });
+        memoryRuleSets.unshift(dbRuleSet.toObject ? dbRuleSet.toObject() : dbRuleSet);
 
         return res.status(201).json({
           success: true,
@@ -267,11 +281,11 @@ export const patchRuleAndCreateVersion = async (req, res) => {
       }
     }
 
-    // In-memory fallback
+    // Memory Fallback
     const latestVersion = memoryRuleSets.length > 0 ? Math.max(...memoryRuleSets.map(r => r.version)) : 0;
     const nextVersion = latestVersion + 1;
 
-    memoryRuleSets.forEach(r => r.isActive = false);
+    memoryRuleSets.forEach(r => { r.isActive = false; r.status = 'ARCHIVED'; });
     const newRuleSet = {
       version: nextVersion,
       isActive: true,
