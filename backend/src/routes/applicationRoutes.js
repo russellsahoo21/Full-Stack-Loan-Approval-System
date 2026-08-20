@@ -16,6 +16,7 @@ const router = express.Router();
 router.post('/apply', protect, submitLoanApplication);
 
 // Admins, Credit Officers, and Applicants can view applications
+router.get('/', protect, authorize('POLICY_ADMIN', 'CREDIT_OFFICER_L1', 'CREDIT_OFFICER_L2', 'APPLICANT'), getAllApplications);
 router.get('/all', protect, authorize('POLICY_ADMIN', 'CREDIT_OFFICER_L1', 'CREDIT_OFFICER_L2', 'APPLICANT'), getAllApplications);
 
 // Audit logs list for Admins and Officers
