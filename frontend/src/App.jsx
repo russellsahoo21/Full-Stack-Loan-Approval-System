@@ -26,6 +26,9 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   }
 
   if (allowedRoles && !allowedRoles.includes(currentRole)) {
+    if (currentRole === ROLES.APPLICANT) {
+      return <Navigate to="/applications" replace />;
+    }
     return <Navigate to="/dashboard" replace />;
   }
   return children;
@@ -46,7 +49,7 @@ function App() {
             <Route 
               path="/dashboard" 
               element={
-                <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT]}>
+                <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.L1, ROLES.L2]}>
                   <Dashboard />
                 </ProtectedRoute>
               } 

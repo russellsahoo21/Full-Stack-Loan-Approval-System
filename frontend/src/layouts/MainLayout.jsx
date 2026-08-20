@@ -19,16 +19,16 @@ const MainLayout = () => {
       name: 'Dashboard', 
       path: '/dashboard', 
       icon: LayoutDashboard, 
-      roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT] 
+      roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
     },
     { 
-      name: 'All Applications', 
+      name: currentRole === ROLES.APPLICANT ? 'My Applications' : 'All Applications', 
       path: '/applications', 
       icon: Layers, 
       roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT] 
     },
     { 
-      name: 'New Application', 
+      name: currentRole === ROLES.APPLICANT ? 'Apply for Loan' : 'New Application', 
       path: '/applications/new', 
       icon: FileText, 
       roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT] 
@@ -74,7 +74,7 @@ const MainLayout = () => {
     <div className="min-h-screen flex bg-[#0a0a0a] text-white">
       {/* Sidebar Desktop */}
       <aside className="w-64 bg-[#111] border-r border-[#2a2a2a] flex flex-col hidden md:flex sticky top-0 h-screen z-30">
-        <Link to="/dashboard" className="h-16 flex items-center px-6 border-b border-[#2a2a2a] gap-2.5">
+        <Link to={currentRole === ROLES.APPLICANT ? "/applications" : "/dashboard"} className="h-16 flex items-center px-6 border-b border-[#2a2a2a] gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center text-white shadow-[0_0_15px_rgba(255,255,255,0.05)]">
             <ShieldAlert className="w-5 h-5 text-white" />
           </div>

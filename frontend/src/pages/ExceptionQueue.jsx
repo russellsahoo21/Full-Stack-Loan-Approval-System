@@ -25,9 +25,20 @@ const ExceptionQueue = () => {
   const fetchExceptions = async () => {
     setIsLoading(true);
     try {
-      const res = await applicationApi.getAll('EXCEPTION_REQUIRED');
+      const res = await applicationApi.getAll();
       if (res.success) {
-        setQueue(res.data || []);
+        // Backend already filters by role, but add a frontend guard for safety
+        const allApps = res.data || [];
+        let exceptions;
+        if (currentRole === ROLES.L1) {
+          exceptions = allApps.filter(app => app.status === 'EXCEPTION_L1_REQUIRED');
+        } else if (currentRole === ROLES.L2) {
+          exceptions = allApps.filter(app => app.status === 'EXCEPTION_L2_REQUIRED');
+        } else {
+          // Admin sees all exceptions
+          exceptions = allApps.filter(app => app.status.includes('EXCEPTION') && app.status.includes('REQUIRED'));
+        }
+        setQueue(exceptions);
       }
     } catch (err) {
       console.warn('Failed to load exception queue from backend:', err);
@@ -82,13 +93,23 @@ const ExceptionQueue = () => {
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-white tracking-tight">Credit Exception Queue</h1>
-              <span className="text-xs bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 px-2.5 py-0.5 rounded-full font-semibold">
+              <h1 className="text-2xl font-bold text-white tracking-tight">
+                {currentRole === ROLES.L1 ? 'L1 Exception Queue' : currentRole === ROLES.L2 ? 'L2 Escalated Queue' : 'All Exception Queues'}
+              </h1>
+              <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${
+                currentRole === ROLES.L2 
+                  ? 'bg-orange-500/10 text-orange-400 border-orange-500/30'
+                  : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'
+              }`}>
                 {queue.length} Pending
               </span>
             </div>
             <p className="text-xs text-gray-400 mt-1">
-              Applications requiring underwriter exception review, policy override, or escalation.
+              {currentRole === ROLES.L1
+                ? 'Minor policy deviations (FOIR, soft limits) awaiting your L1 underwriting review.'
+                : currentRole === ROLES.L2
+                ? 'Escalated high-risk or complex exceptions requiring Credit Head approval.'
+                : 'Full exception queue across all tiers — L1 standard deviations and L2 escalations.'}
             </p>
           </div>
           
@@ -180,8 +201,8 @@ const ExceptionQueue = () => {
                         v{app.ruleSetVersion}
                       </td>
                       <td className="px-6 py-4">
-                        <span className="px-2 py-0.5 text-[10px] uppercase font-bold rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                          L1 Review
+                        <span className={`px-2 py-0.5 text-[10px] uppercase font-bold rounded-full ${app.status === 'EXCEPTION_L2_REQUIRED' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
+                          {app.status === 'EXCEPTION_L2_REQUIRED' ? 'L2 Review' : 'L1 Review'}
                         </span>
                       </td>
                       <td className="px-6 py-4">

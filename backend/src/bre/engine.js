@@ -1,9 +1,7 @@
-/**
- * Smart Credit Underwriting Business Rules Engine (BRE) Engine
- */
+import { DEFAULT_POLICY_CONFIG, REQUIRED_PROFILE_FIELDS, LOAN_TYPE_CONFIGS } from './policy.js';
 
-export const calculateDerivedMetrics = (profile, requestedLoanAmount, requestedTenureMonths) => {
-  const annualRate = 0.115; // 11.5% synthetic base interest rate
+export const calculateDerivedMetrics = (profile, requestedLoanAmount, requestedTenureMonths, policyConfig = DEFAULT_POLICY_CONFIG) => {
+  const annualRate = (policyConfig.baseAnnualRatePercent || DEFAULT_POLICY_CONFIG.baseAnnualRatePercent) / 100;
   const r = annualRate / 12;
   const n = requestedTenureMonths || 60;
   
@@ -72,6 +70,9 @@ export const calculateDynamicRiskIndex = (profile, requestedLoanAmount, maxEligi
 };
 
 export const evaluateRule = (operator, actualValue, threshold) => {
+  if (actualValue === undefined || actualValue === null || actualValue === '') {
+    return false;
+  }
   switch (operator) {
     case '>=':
       return Number(actualValue) >= Number(threshold);
@@ -90,27 +91,97 @@ export const evaluateRule = (operator, actualValue, threshold) => {
   }
 };
 
-export const runBRE = (profile, requestedLoanAmount, requestedTenureMonths, ruleSet) => {
-  const derivedMetrics = calculateDerivedMetrics(profile, requestedLoanAmount, requestedTenureMonths);
+const getParameterValues = (profile, derivedMetrics) => ({
+  cibilScore: profile.cibilScore,
+  foir: derivedMetrics.foir,
+  monthlyIncome: profile.declaredMonthlyIncome,
+  writeOffs: profile.writeOffs,
+  bounceCount: profile.bounceCount,
+  age: profile.age,
+  activeLoans: profile.activeLoans,
+  dpd: profile.dpd,
+  lti: derivedMetrics.lti,
+  incomeTrendPercent: derivedMetrics.incomeTrendPercent,
+  avgMonthlyBalance: profile.avgMonthlyBalance,
+  monthlyCredits: profile.monthlyCredits,
+  mutualFunds: profile.mutualFunds,
+  savings: profile.savings
+});
+
+const conditionsPass = (conditions = [], parameterValues) => {
+  return conditions.every((condition) => (
+    evaluateRule(condition.operator, parameterValues[condition.parameter], condition.threshold)
+  ));
+};
+
+const findPricingBand = (policyConfig, parameterValues) => {
+  const bands = policyConfig.pricingBands?.length
+    ? policyConfig.pricingBands
+    : DEFAULT_POLICY_CONFIG.pricingBands;
+
+  return bands.find((band) => conditionsPass(band.conditions, parameterValues)) || bands[bands.length - 1];
+};
+
+export const getMissingCriticalFields = (profile, requestedLoanAmount, requestedTenureMonths) => {
+  const enrichedProfile = {
+    ...profile,
+    requestedLoanAmount,
+    requestedTenureMonths
+  };
+
+  return REQUIRED_PROFILE_FIELDS.filter((field) => (
+    enrichedProfile[field] === undefined ||
+    enrichedProfile[field] === null ||
+    enrichedProfile[field] === ''
+  ));
+};
+
+/**
+ * Applies loan-type rule overrides and exclusions to the base ruleset.
+ * Returns a new array of rules with per-type thresholds/actions patched in.
+ */
+const applyLoanTypeRules = (baseRules, loanType) => {
+  const loanConfig = LOAN_TYPE_CONFIGS[loanType];
+  if (!loanConfig) return baseRules;
+
+  const { ruleOverrides = [], excludedRuleCodes = [] } = loanConfig;
+
+  return baseRules
+    .filter(rule => !excludedRuleCodes.includes(rule.ruleCode))
+    .map(rule => {
+      const override = ruleOverrides.find(o => o.ruleCode === rule.ruleCode);
+      if (!override) return rule;
+      return { ...rule, ...override.overrides };
+    });
+};
+
+export const runBRE = (profile, requestedLoanAmount, requestedTenureMonths, ruleSet, loanType = 'PERSONAL') => {
+  const loanTypeConfig = LOAN_TYPE_CONFIGS[loanType] || LOAN_TYPE_CONFIGS['PERSONAL'];
+
+  const policyConfig = {
+    ...DEFAULT_POLICY_CONFIG,
+    ...(ruleSet?.config || {}),
+    // Loan-type rate and FOIR override everything else
+    baseAnnualRatePercent: loanTypeConfig.baseAnnualRatePercent,
+    maxFoirPercent: loanTypeConfig.maxFoirPercent
+  };
+  const derivedMetrics = calculateDerivedMetrics(profile, requestedLoanAmount, requestedTenureMonths, policyConfig);
+  const missingCriticalFields = getMissingCriticalFields(profile, requestedLoanAmount, requestedTenureMonths);
   
   const scorecard = [];
   const deviations = [];
   const failedRules = [];
   let hasHardReject = false;
-  let hasException = false;
+  let hasL1Exception = false;
+  let hasL2Exception = false;
+  let l1ExceptionCount = 0;
 
-  const parameterValues = {
-    cibilScore: profile.cibilScore,
-    foir: derivedMetrics.foir,
-    monthlyIncome: profile.declaredMonthlyIncome,
-    writeOffs: profile.writeOffs,
-    bounceCount: profile.bounceCount,
-    age: profile.age,
-    activeLoans: profile.activeLoans,
-    dpd: profile.dpd
-  };
+  const parameterValues = getParameterValues(profile, derivedMetrics);
 
-  ruleSet.rules.forEach((rule) => {
+  // Apply loan-type rule filtering: exclusions + threshold/action overrides
+  const effectiveRules = applyLoanTypeRules(ruleSet.rules, loanType);
+
+  effectiveRules.forEach((rule) => {
     const actualValue = parameterValues[rule.parameter];
     const passed = evaluateRule(rule.operator, actualValue, rule.threshold);
 
@@ -122,16 +193,20 @@ export const runBRE = (profile, requestedLoanAmount, requestedTenureMonths, rule
       
       if (rule.actionOnFail === 'HARD_REJECT') {
         hasHardReject = true;
-      } else if (rule.actionOnFail === 'EXCEPTION') {
-        hasException = true;
+      } else if (rule.actionOnFail === 'EXCEPTION_L1' || rule.actionOnFail === 'EXCEPTION') {
+        hasL1Exception = true;
+        l1ExceptionCount++;
+      } else if (rule.actionOnFail === 'EXCEPTION_L2') {
+        hasL2Exception = true;
       }
     }
 
     scorecard.push({
       ruleCode: rule.ruleCode,
       description: rule.description,
+      reasonCode: rule.reasonCode,
       thresholdRequired: `${rule.parameter} ${rule.operator} ${rule.threshold}`,
-      actualValue: String(actualValue),
+      actualValue: actualValue === undefined || actualValue === null || actualValue === '' ? 'MISSING' : String(actualValue),
       passed,
       actionOnFail: rule.actionOnFail,
       failedReason
@@ -140,35 +215,47 @@ export const runBRE = (profile, requestedLoanAmount, requestedTenureMonths, rule
 
   // Decision Hierarchy & Conflict Resolution
   let decision = 'APPROVED';
-  if (hasHardReject) {
+  let exceptionLevel = null;
+
+  // Escalation Logic
+  if (missingCriticalFields.length > 0) {
+    decision = 'INSUFFICIENT_DATA';
+    deviations.unshift(`Missing critical field(s): ${missingCriticalFields.join(', ')}`);
+  } else if (hasL1Exception) {
+    if (l1ExceptionCount >= policyConfig.l1EscalationCount) {
+      hasL2Exception = true;
+      deviations.push("SYSTEM ESCALATION: Multiple L1 deviations triggered an automatic L2 escalation.");
+    }
+    if (requestedLoanAmount > policyConfig.highLoanEscalationAmount) {
+      hasL2Exception = true;
+      deviations.push(`SYSTEM ESCALATION: High loan amount above ${policyConfig.highLoanEscalationAmount} with deviations triggered an automatic L2 escalation.`);
+    }
+  }
+
+  if (decision === 'INSUFFICIENT_DATA') {
+    exceptionLevel = null;
+  } else if (hasHardReject) {
     decision = 'REJECTED';
-  } else if (hasException) {
-    decision = 'EXCEPTION_REQUIRED';
+  } else if (hasL2Exception) {
+    decision = 'EXCEPTION_L2_REQUIRED';
+    exceptionLevel = 'L2';
+  } else if (hasL1Exception) {
+    decision = 'EXCEPTION_L1_REQUIRED';
+    exceptionLevel = 'L1';
   }
 
   // Pricing & Eligibility Calculation
-  let riskGrade = 'Grade A (Low Risk)';
-  let interestRatePercent = 10.5;
+  const pricingBand = findPricingBand(policyConfig, parameterValues);
+  const riskGrade = pricingBand.riskGrade;
+  const interestRatePercent = pricingBand.interestRatePercent;
 
-  if (profile.cibilScore >= 730 && derivedMetrics.foir <= 45 && derivedMetrics.incomeTrendPercent >= 0) {
-    riskGrade = 'Grade A (Low Risk)';
-    interestRatePercent = 10.5;
-  } else if (profile.cibilScore >= 680 && derivedMetrics.foir <= 55) {
-    riskGrade = 'Grade B (Medium Risk)';
-    interestRatePercent = 12.0;
-  } else {
-    riskGrade = 'Grade C (High Risk)';
-    interestRatePercent = 14.0;
-  }
-
-  // Max Eligible Loan Calculation based on Max FOIR 50%
-  const maxAllowableEMI = 0.50 * profile.declaredMonthlyIncome;
+  const maxAllowableEMI = (policyConfig.maxFoirPercent / 100) * profile.declaredMonthlyIncome;
   const maxNewEMIBuffer = maxAllowableEMI - profile.existingEMI;
 
   let maxEligibleLoanAmount = 0;
   if (maxNewEMIBuffer > 0) {
     const monthlyRate = interestRatePercent / 100 / 12;
-    const n = requestedTenureMonths;
+    const n = requestedTenureMonths || policyConfig.eligibilityTenureMonths;
     maxEligibleLoanAmount = Math.round(
       maxNewEMIBuffer * ((1 - Math.pow(1 + monthlyRate, -n)) / monthlyRate)
     );
@@ -209,9 +296,11 @@ export const runBRE = (profile, requestedLoanAmount, requestedTenureMonths, rule
       riskScore,
       interestRatePercent,
       maxEligibleLoanAmount,
-      whySummaryBadges
+      whySummaryBadges,
+      missingCriticalFields
     },
     exceptionDetails: {
+      exceptionLevel,
       deviations,
       mitigatingFactors
     }

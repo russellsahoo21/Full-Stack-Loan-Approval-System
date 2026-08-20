@@ -6,7 +6,7 @@ const singleRuleSchema = new mongoose.Schema({
   parameter: { 
     type: String, 
     required: true,
-    enum: ['cibilScore', 'foir', 'monthlyIncome', 'writeOffs', 'bounceCount', 'age', 'activeLoans', 'dpd']
+    enum: ['cibilScore', 'foir', 'monthlyIncome', 'writeOffs', 'bounceCount', 'age', 'activeLoans', 'dpd', 'lti', 'incomeTrendPercent']
   },
   operator: { 
     type: String, 
@@ -17,33 +17,18 @@ const singleRuleSchema = new mongoose.Schema({
   actionOnFail: { 
     type: String, 
     required: true, 
-    enum: ['HARD_REJECT', 'EXCEPTION'] 
+    enum: ['HARD_REJECT', 'EXCEPTION_L1', 'EXCEPTION_L2', 'EXCEPTION'] 
   },
+  reasonCode: { type: String },
   mitigatingFactors: [{ type: String }]
 });
-
-const changeLogEntrySchema = new mongoose.Schema({
-  ruleCode: { type: String },
-  description: { type: String },
-  oldThreshold: { type: mongoose.Schema.Types.Mixed },
-  newThreshold: { type: mongoose.Schema.Types.Mixed },
-  oldActionOnFail: { type: String },
-  newActionOnFail: { type: String },
-  changedBy: { type: String }
-}, { _id: false });
 
 const ruleSetSchema = new mongoose.Schema({
   version: { type: Number, required: true, unique: true },
   isActive: { type: Boolean, default: false },
-  status: {
-    type: String,
-    enum: ['ACTIVE', 'ARCHIVED', 'SCHEDULED'],
-    default: 'ARCHIVED'
-  },
-  effectiveFrom: { type: Date, default: Date.now },
   createdReason: { type: String, default: 'Policy update' },
   createdBy: { type: String, default: 'POLICY_ADMIN' },
-  changeLog: [changeLogEntrySchema],
+  config: { type: mongoose.Schema.Types.Mixed },
   rules: [singleRuleSchema]
 }, { timestamps: true });
 

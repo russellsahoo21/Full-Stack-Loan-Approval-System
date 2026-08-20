@@ -13,7 +13,7 @@ import { protect, authorize } from '../middleware/auth.js';
 const router = express.Router();
 
 // Applicants can submit applications
-router.post('/apply', submitLoanApplication);
+router.post('/apply', protect, submitLoanApplication);
 
 // Admins, Credit Officers, and Applicants can view applications
 router.get('/all', protect, authorize('POLICY_ADMIN', 'CREDIT_OFFICER_L1', 'CREDIT_OFFICER_L2', 'APPLICANT'), getAllApplications);

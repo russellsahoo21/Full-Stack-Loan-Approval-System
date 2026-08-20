@@ -91,7 +91,7 @@ const Dashboard = () => {
   // Derived metrics from live applications
   const totalApps = applications.length;
   const approvedApps = applications.filter(a => a.status === 'APPROVED' || a.status === 'APPROVED_VIA_EXCEPTION').length;
-  const exceptionApps = applications.filter(a => a.status === 'EXCEPTION_REQUIRED').length;
+  const exceptionApps = applications.filter(a => a.status.includes('EXCEPTION') && a.status.includes('REQUIRED')).length;
   const rejectedApps = applications.filter(a => a.status === 'REJECTED' || a.status === 'REJECTED_VIA_EXCEPTION').length;
 
   const stpRate = totalApps > 0 ? ((approvedApps / totalApps) * 100).toFixed(1) : '100';
@@ -105,7 +105,11 @@ const Dashboard = () => {
       case 'REJECTED':
       case 'REJECTED_VIA_EXCEPTION':
         return <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">Rejected</span>;
+      case 'INSUFFICIENT_DATA':
+        return <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">Insufficient Data</span>;
       case 'EXCEPTION_REQUIRED':
+      case 'EXCEPTION_L1_REQUIRED':
+      case 'EXCEPTION_L2_REQUIRED':
       default:
         return <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">Exception Required</span>;
     }

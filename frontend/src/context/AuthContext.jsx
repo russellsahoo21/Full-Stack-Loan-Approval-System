@@ -45,63 +45,17 @@ export const DEMO_USERS = {
 
 const AuthContext = createContext(null);
 
-export const isValidEmailDomain = (email) => {
-  if (!email || typeof email !== 'string') return false;
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  if (!emailRegex.test(email)) return false;
-  const parts = email.split('@');
-  if (parts.length !== 2) return false;
-  const domainParts = parts[1].split('.');
-  const tld = domainParts[domainParts.length - 1];
-  return Boolean(tld && tld.length >= 2);
-};
-
 export const AuthProvider = ({ children }) => {
-  // Helper to parse JWT payload without external library
-  const parseJwt = (jwtToken) => {
-    try {
-      if (!jwtToken || !jwtToken.includes('.')) return null;
-      const base64Url = jwtToken.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split('')
-          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-          .join('')
-      );
-      return JSON.parse(jsonPayload);
-    } catch (e) {
-      return null;
-    }
-  };
-
-  // Initialize from LocalStorage
-  const [token, setToken] = useState(() => localStorage.getItem('bre_token') || 'demo-offline-token');
+  // Initialize from LocalStorage or default demo user
+  const [token, setToken] = useState(() => localStorage.getItem('bre_token') || null);
   const [user, setUser] = useState(() => {
-    const savedToken = localStorage.getItem('bre_token');
-    const savedUser = localStorage.getItem('bre_user');
-
-    if (savedToken && savedToken.startsWith('mock-token-')) {
-      const role = savedToken.replace('mock-token-', '');
-      return { name: DEMO_USERS[role]?.name || 'Demo User', role };
-    }
-
-    if (savedToken && savedToken !== 'demo-offline-token') {
-      const decoded = parseJwt(savedToken);
-      if (decoded && decoded.role) {
-        return {
-          name: decoded.name || (savedUser ? JSON.parse(savedUser)?.name : 'User'),
-          email: decoded.email,
-          role: decoded.role,
-          id: decoded.id
-        };
-      }
-    }
-
-    if (savedUser) {
+    const saved = localStorage.getItem('bre_user');
+    if (saved) {
       try {
-        return JSON.parse(savedUser);
-      } catch (e) {}
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse saved user from storage:', e);
+      }
     }
     return DEMO_USERS[ROLES.ADMIN];
   });
@@ -123,34 +77,32 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     setIsLoading(true);
-
-    if (!credentials.email || !isValidEmailDomain(credentials.email)) {
-      setIsLoading(false);
-      return { 
-        success: false, 
-        message: 'Please enter a valid email address with a domain (e.g. gmail.com, outlook.com, nbfc.com).' 
-      };
-    }
-
     try {
       const response = await authApi.login(credentials);
       if (response.success && response.token) {
         saveAuthSession(response.token, response.user);
         return { success: true, user: response.user };
       }
-      return { 
-        success: false, 
-        message: response.message || 'Invalid email or password. Please check your credentials.' 
-      };
+      return { success: false, message: response.message || 'Login failed' };
     } catch (error) {
-      const serverMessage = error.response?.data?.message;
-      if (serverMessage) {
-        return { success: false, message: serverMessage };
+      // Check if this was a network error or a backend rejection
+      if (error.response) {
+        // Backend responded with an error (e.g. 401 Invalid credentials)
+        return { 
+          success: false, 
+          message: error.response?.data?.message || 'Login failed' 
+        };
       }
-      return { 
-        success: false, 
-        message: 'Account not found or password incorrect. Please sign up if you do not have an account.' 
+
+      // Fallback for offline hackathon testing (only on network errors)
+      console.warn('Backend login request failed, falling back to local demo profile', error);
+      const fallbackUser = {
+        name: credentials.email.split('@')[0],
+        email: credentials.email,
+        role: ROLES.ADMIN,
       };
+      saveAuthSession('demo-offline-token', fallbackUser);
+      return { success: true, user: fallbackUser, fallback: true };
     } finally {
       setIsLoading(false);
     }
@@ -158,28 +110,21 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     setIsLoading(true);
-
-    if (!userData.email || !isValidEmailDomain(userData.email)) {
-      setIsLoading(false);
-      return { 
-        success: false, 
-        message: 'Please enter a valid email address with a domain (e.g. gmail.com, outlook.com, nbfc.com).' 
-      };
-    }
-
     try {
       const response = await authApi.register(userData);
       if (response.success && response.token) {
         saveAuthSession(response.token, response.user);
         return { success: true, user: response.user };
       }
-      return { 
-        success: false, 
-        message: response.message || 'User already exists with this email address.' 
-      };
+      return { success: false, message: response.message || 'Registration failed' };
     } catch (error) {
-      const message = error.response?.data?.message || 'User already registered with this email address. Please sign in instead.';
-      return { success: false, message };
+      const fallbackUser = {
+        name: userData.name,
+        email: userData.email,
+        role: userData.role || ROLES.APPLICANT,
+      };
+      saveAuthSession('demo-offline-token', fallbackUser);
+      return { success: true, user: fallbackUser, fallback: true };
     } finally {
       setIsLoading(false);
     }
@@ -188,8 +133,8 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('bre_token');
     localStorage.removeItem('bre_user');
-    setToken('demo-offline-token');
-    setUser(DEMO_USERS[ROLES.ADMIN]);
+    setToken(null);
+    setUser(null);
   };
 
   // Instant Persona Switcher for Hackathon Live Demo

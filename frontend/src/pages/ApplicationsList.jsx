@@ -6,9 +6,11 @@ import {
 import { Link } from 'react-router-dom';
 import { applicationApi } from '../services/api';
 import { formatCurrency } from '../utils/masking';
+import { useAuth, ROLES } from '../context/AuthContext';
 import clsx from 'clsx';
 
 const ApplicationsList = () => {
+  const { currentRole } = useAuth();
   const [applications, setApplications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -41,7 +43,7 @@ const ApplicationsList = () => {
     if (statusFilter === 'ALL') return matchesSearch;
     if (statusFilter === 'APPROVED') return matchesSearch && (app.status === 'APPROVED' || app.status === 'APPROVED_VIA_EXCEPTION');
     if (statusFilter === 'REJECTED') return matchesSearch && (app.status === 'REJECTED' || app.status === 'REJECTED_VIA_EXCEPTION');
-    if (statusFilter === 'EXCEPTION_REQUIRED') return matchesSearch && app.status === 'EXCEPTION_REQUIRED';
+    if (statusFilter === 'EXCEPTION_REQUIRED') return matchesSearch && app.status.includes('EXCEPTION') && app.status.includes('REQUIRED');
 
     return matchesSearch && app.status === statusFilter;
   });
@@ -55,7 +57,11 @@ const ApplicationsList = () => {
       case 'REJECTED':
       case 'REJECTED_VIA_EXCEPTION':
         return <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">Rejected</span>;
+      case 'INSUFFICIENT_DATA':
+        return <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">Insufficient Data</span>;
       case 'EXCEPTION_REQUIRED':
+      case 'EXCEPTION_L1_REQUIRED':
+      case 'EXCEPTION_L2_REQUIRED':
       default:
         return <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">Exception Required</span>;
     }
@@ -67,13 +73,24 @@ const ApplicationsList = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-bold text-white tracking-tight">Loan Applications Master</h1>
+            <h1 className="text-3xl font-bold text-white tracking-tight">
+              {currentRole === ROLES.APPLICANT ? 'My Applications' :
+               currentRole === ROLES.L1 ? 'L1 Exception Queue — Assigned Applications' :
+               currentRole === ROLES.L2 ? 'L2 Escalated Queue — Assigned Applications' :
+               'Loan Applications Master'}
+            </h1>
             <span className="text-xs bg-[#222] border border-[#333] text-gray-300 font-mono px-2.5 py-0.5 rounded-full">
               {applications.length} Records
             </span>
           </div>
           <p className="text-gray-400 mt-1 text-sm">
-            Central ledger of all automated and officer-evaluated loan applications in MongoDB.
+            {currentRole === ROLES.APPLICANT 
+              ? 'Track your submitted loan applications and their current status.'
+              : currentRole === ROLES.L1
+              ? 'Applications flagged for L1 underwriting review — minor policy deviations.'
+              : currentRole === ROLES.L2
+              ? 'Escalated complex exceptions assigned to you for Credit Head-level review.'
+              : 'Central ledger of all automated and officer-evaluated loan applications.'}
           </p>
         </div>
 
@@ -91,30 +108,32 @@ const ApplicationsList = () => {
             className="px-4 py-2.5 bg-white text-black font-bold rounded-xl text-xs hover:bg-gray-200 transition-all flex items-center gap-2 shadow-md"
           >
             <Sparkles className="w-4 h-4" />
-            <span>New Application</span>
+            <span>{currentRole === ROLES.APPLICANT ? 'Apply for Loan' : 'New Application'}</span>
           </Link>
         </div>
       </div>
 
       {/* Filters & Search Bar */}
       <div className="bg-[#111] border border-[#333] rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
-        {/* Status Filter Tabs */}
-        <div className="flex flex-wrap gap-1.5">
-          {['ALL', 'APPROVED', 'EXCEPTION_REQUIRED', 'REJECTED'].map((st) => (
-            <button
-              key={st}
-              onClick={() => setStatusFilter(st)}
-              className={clsx(
-                "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
-                statusFilter === st 
-                  ? "bg-white text-black shadow-sm" 
-                  : "bg-[#181818] text-gray-400 hover:text-white border border-[#2a2a2a]"
-              )}
-            >
-              {st === 'ALL' ? 'All Applications' : st.replace('_', ' ')}
-            </button>
-          ))}
-        </div>
+        {/* Status Filter Tabs — hidden for L1/L2 since backend already scopes their view */}
+        {(currentRole === ROLES.ADMIN) && (
+          <div className="flex flex-wrap gap-1.5">
+            {['ALL', 'APPROVED', 'EXCEPTION_REQUIRED', 'REJECTED', 'INSUFFICIENT_DATA'].map((st) => (
+              <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                className={clsx(
+                  "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                  statusFilter === st 
+                    ? "bg-white text-black shadow-sm" 
+                    : "bg-[#181818] text-gray-400 hover:text-white border border-[#2a2a2a]"
+                )}
+              >
+                {st === 'ALL' ? 'All Applications' : st.replace('_', ' ')}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Search */}
         <div className="relative">
