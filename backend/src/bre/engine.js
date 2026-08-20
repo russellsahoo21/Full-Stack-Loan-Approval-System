@@ -41,6 +41,36 @@ export const calculateDerivedMetrics = (profile, requestedLoanAmount, requestedT
   };
 };
 
+/**
+ * Option A: Dynamic Risk Level Index (0% - 100%)
+ * Higher Loan Amount -> Higher Utilization & Debt -> HIGHER RISK LEVEL %
+ */
+export const calculateDynamicRiskIndex = (profile, requestedLoanAmount, maxEligibleLoanAmount, derivedMetrics) => {
+  // 1. CIBIL Risk Component (0 to 35 Risk %): Lower CIBIL = Higher Risk %
+  const cibil = profile.cibilScore || 700;
+  const cibilRisk = Math.min(35, Math.max(0, ((850 - cibil) / 550) * 35));
+
+  // 2. FOIR Risk Component (0 to 35 Risk %): Higher FOIR = Higher Risk %
+  const foir = derivedMetrics.foir || 30;
+  const foirRisk = Math.min(35, Math.max(0, (foir / 65) * 35));
+
+  // 3. Loan Ask vs Max Bank Eligibility Utilization Risk Component (0 to 25 Risk %):
+  // As requested loan amount INCREASES (e.g., ₹5L -> ₹8L -> ₹11L), Risk Level % INCREASES!
+  let amountRisk = 12;
+  if (maxEligibleLoanAmount && maxEligibleLoanAmount > 0) {
+    const ratio = requestedLoanAmount / maxEligibleLoanAmount;
+    amountRisk = Math.min(25, Math.max(0, Math.round(ratio * 20)));
+  }
+
+  // 4. Default / Bounce History Risk Component (0 to 5 Risk %):
+  let historyRisk = 0;
+  if (profile.writeOffs > 0) historyRisk += 5;
+  if (profile.bounceCount > 0) historyRisk += Math.min(5, profile.bounceCount * 2);
+
+  const totalRiskIndex = Math.min(99, Math.max(5, Math.round(cibilRisk + foirRisk + amountRisk + historyRisk)));
+  return totalRiskIndex;
+};
+
 export const evaluateRule = (operator, actualValue, threshold) => {
   switch (operator) {
     case '>=':
@@ -144,13 +174,17 @@ export const runBRE = (profile, requestedLoanAmount, requestedTenureMonths, rule
     );
   }
 
+  // Dynamically calculate Risk Index (Option A: Higher amount -> Higher Risk Level %)
+  const riskScore = calculateDynamicRiskIndex(profile, requestedLoanAmount, maxEligibleLoanAmount, derivedMetrics);
+
   // Generate Explainability Badges
   const whySummaryBadges = [
     `CIBIL Score: ${profile.cibilScore}`,
     `FOIR: ${derivedMetrics.foir}% (Max allowable 50%)`,
     `Income Trend: ${derivedMetrics.incomeTrendPercent >= 0 ? '+' : ''}${derivedMetrics.incomeTrendPercent}%`,
     `Write-offs: ${profile.writeOffs}`,
-    `Risk Band: ${riskGrade} (${interestRatePercent}% interest)`
+    `Risk Band: ${riskGrade} (${interestRatePercent}% interest)`,
+    `Underwriting Risk Index: ${riskScore}%`
   ];
 
   // Extract mitigating factors if exception required
@@ -172,6 +206,7 @@ export const runBRE = (profile, requestedLoanAmount, requestedTenureMonths, rule
     evaluationResult: {
       decision,
       riskGrade,
+      riskScore,
       interestRatePercent,
       maxEligibleLoanAmount,
       whySummaryBadges

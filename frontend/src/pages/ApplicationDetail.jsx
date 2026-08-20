@@ -12,13 +12,14 @@ import { useAuth, ROLES } from '../context/AuthContext';
 import { applicationApi, rulesApi } from '../services/api';
 import clsx from 'clsx';
 
-const RiskGauge = ({ grade = 'Grade A', score = 85 }) => {
+const RiskGauge = ({ grade = 'Grade A', score = 25 }) => {
   const data = [
-    { name: 'Score', value: score },
-    { name: 'Remainder', value: 100 - score },
+    { name: 'Risk', value: score },
+    { name: 'Safety Buffer', value: 100 - score },
   ];
+  // Option A Risk Colors: Low Risk (<=35%) = GREEN, Medium Risk (36-65%) = YELLOW, High Risk (>65%) = RED
   const COLORS = [
-    score >= 75 ? '#22c55e' : score >= 55 ? '#f59e0b' : '#ef4444', 
+    score <= 35 ? '#22c55e' : score <= 65 ? '#f59e0b' : '#ef4444', 
     '#222'
   ];
 
@@ -45,8 +46,8 @@ const RiskGauge = ({ grade = 'Grade A', score = 85 }) => {
         </PieChart>
       </ResponsiveContainer>
       <div className="absolute top-[45%] flex flex-col items-center">
-        <span className="text-xl font-extrabold text-white leading-none">{score}</span>
-        <span className="text-[10px] text-gray-400 uppercase tracking-wider mt-1">{grade.split(' ')[0]}</span>
+        <span className="text-xl font-extrabold text-white leading-none">{score}%</span>
+        <span className="text-[10px] text-gray-400 uppercase tracking-wider mt-1">Risk Level</span>
       </div>
     </div>
   );
@@ -207,9 +208,36 @@ const ApplicationDetail = () => {
   const currentStatus = statusConfig[application.status] || statusConfig.EXCEPTION_REQUIRED;
   const isOfficerOrAdmin = [ROLES.ADMIN, ROLES.L1, ROLES.L2].includes(currentRole);
 
-  const riskScore = application.evaluationResult?.riskGrade?.includes('Grade A') ? 88 
-    : application.evaluationResult?.riskGrade?.includes('Grade B') ? 68 
-    : 42;
+  // Option A Dynamic Risk Level % calculation: Higher Loan Amount -> Higher Risk Level %
+  const calculateDynamicScore = () => {
+    if (application.evaluationResult?.riskScore !== undefined) {
+      return application.evaluationResult.riskScore;
+    }
+
+    const cibil = profile?.cibilScore || 700;
+    const cibilRisk = Math.min(35, Math.max(0, ((850 - cibil) / 550) * 35));
+    
+    const foir = application.derivedMetrics?.foir || 30;
+    const foirRisk = Math.min(35, Math.max(0, (foir / 65) * 35));
+
+    const reqAmt = application.requestedLoanAmount || 1;
+    const maxEligible = application.evaluationResult?.maxEligibleLoanAmount || reqAmt;
+
+    let amountRisk = 12;
+    if (maxEligible > 0) {
+      const ratio = reqAmt / maxEligible;
+      amountRisk = Math.min(25, Math.max(0, Math.round(ratio * 20)));
+    }
+
+    let historyRisk = 0;
+    if (profile?.writeOffs > 0) historyRisk += 5;
+    if (profile?.bounceCount > 0) historyRisk += Math.min(5, profile.bounceCount * 2);
+
+    return Math.min(99, Math.max(5, Math.round(cibilRisk + foirRisk + amountRisk + historyRisk)));
+  };
+
+  const riskScore = calculateDynamicScore();
+
 
   return (
     <div className="max-w-7xl mx-auto pb-16 animate-in fade-in duration-500 space-y-8">

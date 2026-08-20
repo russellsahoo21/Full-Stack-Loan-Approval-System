@@ -20,21 +20,46 @@ const memoryRuleSets = [
   }
 ];
 
+// Helper to get or auto-seed the active rule set
+const getOrCreateActiveRuleSet = async () => {
+  if (isDbConnected) {
+    try {
+      let activeRuleSet = await RuleSet.findOne({ isActive: true });
+      if (!activeRuleSet) {
+        // If DB connected but no active RuleSet exists, check for any RuleSet
+        const latest = await RuleSet.findOne().sort({ version: -1 });
+        if (latest) {
+          latest.isActive = true;
+          latest.status = 'ACTIVE';
+          await latest.save();
+          return latest;
+        }
+
+        // Auto-seed Baseline Version 1 into MongoDB
+        console.log('⚡ [BRE Rules] Auto-seeding Baseline RuleSet v1 into MongoDB...');
+        activeRuleSet = await RuleSet.create({
+          version: 1,
+          isActive: true,
+          status: 'ACTIVE',
+          createdReason: 'Baseline NBFC Policy Rules (v1)',
+          createdBy: 'Policy Admin',
+          rules: memoryRuleSets[0].rules
+        });
+      }
+      return activeRuleSet;
+    } catch (dbErr) {
+      console.warn('⚠️ [Rules] DB fetch failed, using memory fallback:', dbErr.message);
+    }
+  }
+
+  // Memory fallback
+  return memoryRuleSets.find(r => r.isActive) || memoryRuleSets[0];
+};
+
 export const getActiveRuleSet = async (req, res) => {
   try {
-    if (isDbConnected) {
-      try {
-        const activeRuleSet = await RuleSet.findOne({ isActive: true });
-        if (activeRuleSet) {
-          return res.json({ success: true, data: activeRuleSet });
-        }
-      } catch (dbErr) {
-        console.warn('DB fetch fallback:', dbErr.message);
-      }
-    }
-
-    const activeSet = memoryRuleSets.find(r => r.isActive) || memoryRuleSets[0];
-    res.json({ success: true, data: activeSet });
+    const activeRuleSet = await getOrCreateActiveRuleSet();
+    res.json({ success: true, data: activeRuleSet });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -44,7 +69,12 @@ export const getAllRuleVersions = async (req, res) => {
   try {
     if (isDbConnected) {
       try {
-        const versions = await RuleSet.find().sort({ version: -1 });
+        let versions = await RuleSet.find().sort({ version: -1 });
+        if (versions.length === 0) {
+          // Auto-seed Baseline v1
+          const baseline = await getOrCreateActiveRuleSet();
+          versions = [baseline];
+        }
         return res.json({ success: true, count: versions.length, data: versions });
       } catch (dbErr) {
         console.warn('DB fetch fallback:', dbErr.message);
@@ -87,14 +117,15 @@ export const createNewRuleVersion = async (req, res) => {
   try {
     const { rules, createdReason, effectiveFrom } = req.body;
 
-    // Find latest version number
-    const latestSet = await RuleSet.findOne().sort({ version: -1 });
-    const nextVersion = latestSet ? latestSet.version + 1 : 1;
-
-    // Archive all previous versions in MongoDB
     if (isDbConnected) {
       try {
+        // Find latest version number
+        const latestSet = await RuleSet.findOne().sort({ version: -1 });
+        const nextVersion = latestSet ? latestSet.version + 1 : 1;
+
+        // Archive all previous versions in MongoDB
         await RuleSet.updateMany({ isActive: true }, { isActive: false, status: 'ARCHIVED' });
+
         const dbRuleSet = await RuleSet.create({
           version: nextVersion,
           isActive: true,
@@ -104,9 +135,10 @@ export const createNewRuleVersion = async (req, res) => {
           createdBy: req.user?.name || 'POLICY_ADMIN',
           rules: rules || memoryRuleSets[0].rules
         });
+
         return res.status(201).json({
           success: true,
-          message: `Version ${nextVersion} activated successfully! Zero backend code changes needed.`,
+          message: `Version v${nextVersion} activated successfully! Zero backend code changes needed.`,
           data: dbRuleSet
         });
       } catch (dbErr) {
@@ -115,6 +147,9 @@ export const createNewRuleVersion = async (req, res) => {
     }
 
     // Memory fallback
+    const latestVersion = memoryRuleSets.length > 0 ? Math.max(...memoryRuleSets.map(r => r.version)) : 0;
+    const nextVersion = latestVersion + 1;
+
     memoryRuleSets.forEach(r => r.isActive = false);
     const newRuleSet = {
       version: nextVersion,
@@ -130,7 +165,7 @@ export const createNewRuleVersion = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: `Version ${nextVersion} activated successfully! Zero backend code changes needed.`,
+      message: `Version v${nextVersion} activated successfully! Zero backend code changes needed.`,
       data: newRuleSet
     });
   } catch (error) {
@@ -150,10 +185,11 @@ export const patchRuleAndCreateVersion = async (req, res) => {
       return res.status(400).json({ success: false, message: 'ruleCode and newThreshold are required' });
     }
 
-    // Get current active rule set to clone from
-    const currentActive = await RuleSet.findOne({ isActive: true });
-    if (!currentActive) {
-      return res.status(400).json({ success: false, message: 'No active rule set found to patch from' });
+    // Get active rule set (auto-seeds Baseline v1 if MongoDB collection is empty)
+    const currentActive = await getOrCreateActiveRuleSet();
+
+    if (!currentActive || !currentActive.rules) {
+      return res.status(400).json({ success: false, message: 'No active rule set available to patch from' });
     }
 
     // Find the rule being changed
@@ -197,24 +233,57 @@ export const patchRuleAndCreateVersion = async (req, res) => {
       };
     });
 
-    // Find next version
-    const latestSet = await RuleSet.findOne().sort({ version: -1 });
-    const nextVersion = latestSet ? latestSet.version + 1 : 1;
+    if (isDbConnected) {
+      try {
+        // Find next version number
+        const latestSet = await RuleSet.findOne().sort({ version: -1 });
+        const nextVersion = latestSet ? latestSet.version + 1 : (currentActive.version || 1) + 1;
 
-    // Archive current active
-    await RuleSet.updateMany({ isActive: true }, { isActive: false, status: 'ARCHIVED' });
+        // Archive current active
+        await RuleSet.updateMany({ isActive: true }, { isActive: false, status: 'ARCHIVED' });
 
-    // Create new version with change log
-    const newRuleSet = await RuleSet.create({
+        // Create new version with change log
+        const dbRuleSet = await RuleSet.create({
+          version: nextVersion,
+          isActive: true,
+          status: 'ACTIVE',
+          effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : new Date(),
+          createdReason: changeReason || `Patched ${ruleCode}: ${changeLogEntry.oldThreshold} → ${changeLogEntry.newThreshold}`,
+          createdBy: changedBy || req.user?.name || 'POLICY_ADMIN',
+          changeLog: [changeLogEntry],
+          rules: patchedRules
+        });
+
+        return res.status(201).json({
+          success: true,
+          message: `Version v${nextVersion} created — ${ruleCode} threshold: ${changeLogEntry.oldThreshold} → ${changeLogEntry.newThreshold}`,
+          data: dbRuleSet,
+          changeLog: changeLogEntry,
+          previousVersion: currentActive.version,
+          newVersion: nextVersion
+        });
+      } catch (dbErr) {
+        console.warn('DB patch write fallback:', dbErr.message);
+      }
+    }
+
+    // In-memory fallback
+    const latestVersion = memoryRuleSets.length > 0 ? Math.max(...memoryRuleSets.map(r => r.version)) : 0;
+    const nextVersion = latestVersion + 1;
+
+    memoryRuleSets.forEach(r => r.isActive = false);
+    const newRuleSet = {
       version: nextVersion,
       isActive: true,
       status: 'ACTIVE',
       effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : new Date(),
       createdReason: changeReason || `Patched ${ruleCode}: ${changeLogEntry.oldThreshold} → ${changeLogEntry.newThreshold}`,
       createdBy: changedBy || req.user?.name || 'POLICY_ADMIN',
+      createdAt: new Date(),
       changeLog: [changeLogEntry],
       rules: patchedRules
-    });
+    };
+    memoryRuleSets.unshift(newRuleSet);
 
     res.status(201).json({
       success: true,
