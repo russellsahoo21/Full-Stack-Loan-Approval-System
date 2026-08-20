@@ -7,6 +7,7 @@ import authRoutes from './routes/authRoutes.js';
 import rulesRoutes from './routes/rulesRoutes.js';
 import syntheticRoutes from './routes/syntheticRoutes.js';
 import applicationRoutes from './routes/applicationRoutes.js';
+import bureauRoutes from './routes/bureauRoutes.js';
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/rules', rulesRoutes);
 app.use('/api/synthetic', syntheticRoutes);
 app.use('/api/applications', applicationRoutes);
+app.use('/api/bureau', bureauRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

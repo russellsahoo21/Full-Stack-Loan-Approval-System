@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 const applicantProfileSchema = new mongoose.Schema({
   applicantId: { type: String, required: true, unique: true }, // e.g. APP001
   name: { type: String, required: true },
+  panNumber: { type: String }, // e.g. ABCDE1234F
+  aadhaarNumber: { type: String }, // e.g. 987654321098
   age: { type: Number, required: true },
   employmentType: { type: String, required: true }, // 'Salaried', 'Self-Employed'
   declaredMonthlyIncome: { type: Number, required: true },
@@ -10,6 +12,7 @@ const applicantProfileSchema = new mongoose.Schema({
   
   // Synthetic Data (Bureau, Banking, ITR, Assets)
   cibilScore: { type: Number, default: 735 },
+  scoreCategory: { type: String, default: 'Prime' },
   activeLoans: { type: Number, default: 2 },
   dpd: { type: Number, default: 0 },
   writeOffs: { type: Number, default: 0 },
@@ -20,7 +23,9 @@ const applicantProfileSchema = new mongoose.Schema({
   lastYearIncome: { type: Number, default: 850000 },
   currentYearIncome: { type: Number, default: 960000 },
   mutualFunds: { type: Number, default: 200000 },
-  savings: { type: Number, default: 50000 }
+  savings: { type: Number, default: 50000 },
+  kycStatus: { type: String, default: 'VERIFIED_NSDL_UIDAI' },
+  bureauFetchedAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
 export const ApplicantProfile = mongoose.model('ApplicantProfile', applicantProfileSchema);

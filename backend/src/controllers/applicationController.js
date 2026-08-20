@@ -6,6 +6,7 @@ import { AuditLog } from '../models/AuditLog.js';
 import { runBRE } from '../bre/engine.js';
 import { isDbConnected } from '../config/db.js';
 import { getActiveRuleSetDoc } from './rulesController.js';
+import { fetchBureauReport } from '../services/bureauService.js';
 
 // Default fallback rule set if DB is offline or buffering
 const defaultRuleSetV1 = {
@@ -43,6 +44,8 @@ export const submitLoanApplication = async (req, res) => {
   try {
     const { 
       name, 
+      panNumber,
+      aadhaarNumber,
       age, 
       employmentType, 
       declaredMonthlyIncome, 
@@ -55,25 +58,48 @@ export const submitLoanApplication = async (req, res) => {
     const applicantId = customApplicantId || `APP${Math.floor(100 + Math.random() * 900)}`;
     const applicationId = `LOAN${Math.floor(1000 + Math.random() * 9000)}`;
 
+    // If PAN or Aadhaar is present, fetch verified bureau telemetry to prevent spoofing
+    let verifiedBureau = null;
+    if (panNumber || aadhaarNumber) {
+      try {
+        verifiedBureau = await fetchBureauReport(panNumber || aadhaarNumber, name);
+      } catch (bErr) {
+        console.warn('Bureau verification warning:', bErr.message);
+      }
+    }
+
+    const resolvedPan = panNumber || verifiedBureau?.panNumber || '';
+    const resolvedAadhaar = aadhaarNumber || verifiedBureau?.aadhaarNumber || '';
+    const resolvedCibil = verifiedBureau?.cibilScore ?? (req.body.cibilScore !== undefined ? req.body.cibilScore : 735);
+    const resolvedWriteOffs = verifiedBureau?.writeOffs ?? (req.body.writeOffs !== undefined ? req.body.writeOffs : 0);
+    const resolvedBounceCount = verifiedBureau?.bounceCount ?? (req.body.bounceCount !== undefined ? req.body.bounceCount : 1);
+    const resolvedMutualFunds = verifiedBureau?.mutualFunds ?? (req.body.mutualFunds !== undefined ? req.body.mutualFunds : 200000);
+    const resolvedSavings = verifiedBureau?.savings ?? (req.body.savings !== undefined ? req.body.savings : 50000);
+
     const profileData = {
       applicantId,
-      name: name || 'Rahul Sharma',
-      age: age || 29,
-      employmentType: employmentType || 'Salaried',
-      declaredMonthlyIncome: declaredMonthlyIncome || 80000,
-      existingEMI: existingEMI !== undefined ? existingEMI : 15000,
-      cibilScore: req.body.cibilScore || 735,
-      activeLoans: req.body.activeLoans || 2,
-      dpd: req.body.dpd || 0,
-      writeOffs: req.body.writeOffs !== undefined ? req.body.writeOffs : 0,
-      defaults: req.body.defaults || 0,
-      avgMonthlyBalance: req.body.avgMonthlyBalance || 45000,
-      monthlyCredits: req.body.monthlyCredits || 80000,
-      bounceCount: req.body.bounceCount !== undefined ? req.body.bounceCount : 1,
+      name: name || verifiedBureau?.name || 'Rahul Sharma',
+      panNumber: resolvedPan,
+      aadhaarNumber: resolvedAadhaar,
+      age: age || verifiedBureau?.age || 29,
+      employmentType: employmentType || verifiedBureau?.employmentType || 'Salaried',
+      declaredMonthlyIncome: declaredMonthlyIncome || verifiedBureau?.declaredMonthlyIncome || 80000,
+      existingEMI: existingEMI !== undefined ? existingEMI : (verifiedBureau?.existingEMI ?? 15000),
+      cibilScore: resolvedCibil,
+      scoreCategory: verifiedBureau?.scoreCategory || 'Prime',
+      activeLoans: req.body.activeLoans || verifiedBureau?.activeLoans || 2,
+      dpd: req.body.dpd !== undefined ? req.body.dpd : (verifiedBureau?.dpd ?? 0),
+      writeOffs: resolvedWriteOffs,
+      defaults: req.body.defaults !== undefined ? req.body.defaults : (verifiedBureau?.defaults ?? 0),
+      avgMonthlyBalance: req.body.avgMonthlyBalance || verifiedBureau?.avgMonthlyBalance || 45000,
+      monthlyCredits: req.body.monthlyCredits || verifiedBureau?.monthlyCredits || 80000,
+      bounceCount: resolvedBounceCount,
       lastYearIncome: req.body.lastYearIncome || 850000,
       currentYearIncome: req.body.currentYearIncome || 960000,
-      mutualFunds: req.body.mutualFunds !== undefined ? req.body.mutualFunds : 200000,
-      savings: req.body.savings !== undefined ? req.body.savings : 50000
+      mutualFunds: resolvedMutualFunds,
+      savings: resolvedSavings,
+      kycStatus: verifiedBureau?.kycStatus || 'VERIFIED_NSDL_UIDAI',
+      bureauFetchedAt: verifiedBureau?.bureauFetchedAt ? new Date(verifiedBureau.bureauFetchedAt) : new Date()
     };
 
     memoryProfiles[applicantId] = profileData;
@@ -103,6 +129,8 @@ export const submitLoanApplication = async (req, res) => {
     const appDoc = {
       applicationId,
       applicantId,
+      panNumber: resolvedPan,
+      aadhaarNumber: resolvedAadhaar,
       requestedLoanAmount: loanAmount,
       requestedTenureMonths: tenure,
       status: breResult.decision,
@@ -111,6 +139,17 @@ export const submitLoanApplication = async (req, res) => {
       scorecard: breResult.scorecard,
       evaluationResult: breResult.evaluationResult,
       exceptionDetails: breResult.exceptionDetails,
+      bureauSnapshot: {
+        panNumber: resolvedPan,
+        cibilScore: resolvedCibil,
+        scoreCategory: verifiedBureau?.scoreCategory || 'Prime',
+        kycStatus: verifiedBureau?.kycStatus || 'VERIFIED_NSDL_UIDAI',
+        writeOffs: resolvedWriteOffs,
+        bounceCount: resolvedBounceCount,
+        mutualFunds: resolvedMutualFunds,
+        savings: resolvedSavings,
+        bureauSource: verifiedBureau?.bureauSource || 'CIBIL / Experian India Realtime Gateway'
+      },
       createdAt: new Date(),
       updatedAt: new Date()
     };

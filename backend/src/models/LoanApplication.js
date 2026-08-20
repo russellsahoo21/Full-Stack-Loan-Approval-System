@@ -13,6 +13,8 @@ const scorecardItemSchema = new mongoose.Schema({
 const loanApplicationSchema = new mongoose.Schema({
   applicationId: { type: String, required: true, unique: true }, // e.g. LOAN1001
   applicantId: { type: String, required: true }, // e.g. APP001
+  panNumber: { type: String },
+  aadhaarNumber: { type: String },
   requestedLoanAmount: { type: Number, required: true },
   requestedTenureMonths: { type: Number, required: true },
   
@@ -37,9 +39,22 @@ const loanApplicationSchema = new mongoose.Schema({
   evaluationResult: {
     decision: { type: String },
     riskGrade: { type: String }, // 'Grade A', 'Grade B', 'Grade C'
+    riskScore: { type: Number }, // Dynamic risk level index 0-100%
     interestRatePercent: { type: Number },
     maxEligibleLoanAmount: { type: Number },
     whySummaryBadges: [{ type: String }]
+  },
+
+  bureauSnapshot: {
+    panNumber: { type: String },
+    cibilScore: { type: Number },
+    scoreCategory: { type: String },
+    kycStatus: { type: String },
+    writeOffs: { type: Number },
+    bounceCount: { type: Number },
+    mutualFunds: { type: Number },
+    savings: { type: Number },
+    bureauSource: { type: String }
   },
   
   exceptionDetails: {

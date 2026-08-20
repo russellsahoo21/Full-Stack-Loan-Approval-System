@@ -121,6 +121,18 @@ export const syntheticApi = {
   },
 };
 
+// Bureau & KYC Gateway Endpoints
+export const bureauApi = {
+  fetchReport: async (identifier, name) => {
+    const res = await api.post('/bureau/fetch-report', { identifier, name });
+    return res.data;
+  },
+  getDemoProfiles: async () => {
+    const res = await api.get('/bureau/demo-profiles');
+    return res.data;
+  },
+};
+
 // Health Check Endpoint
 export const healthApi = {
   getHealth: async () => {

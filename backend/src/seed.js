@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { User } from './models/User.js';
 import { RuleSet } from './models/RuleSet.js';
 import { ApplicantProfile } from './models/ApplicantProfile.js';
@@ -7,7 +9,9 @@ import { LoanApplication } from './models/LoanApplication.js';
 import { AuditLog } from './models/AuditLog.js';
 import { runBRE } from './bre/engine.js';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const seedData = async () => {
   try {
@@ -123,67 +127,79 @@ const seedData = async () => {
     const profile1 = await ApplicantProfile.create({
       applicantId: 'APP001',
       name: 'Rahul Sharma',
+      panNumber: 'ABCDE1234F',
+      aadhaarNumber: '987654321098',
       age: 29,
       employmentType: 'Salaried',
       declaredMonthlyIncome: 80000,
       existingEMI: 15000,
-      cibilScore: 735,
+      cibilScore: 745,
+      scoreCategory: 'Prime (High Quality)',
       activeLoans: 2,
       dpd: 0,
       writeOffs: 0,
       defaults: 0,
-      avgMonthlyBalance: 45000,
+      avgMonthlyBalance: 55000,
       monthlyCredits: 80000,
-      bounceCount: 1,
+      bounceCount: 0,
       lastYearIncome: 850000,
       currentYearIncome: 960000,
-      mutualFunds: 200000,
-      savings: 50000
+      mutualFunds: 250000,
+      savings: 75000,
+      kycStatus: 'VERIFIED_NSDL_UIDAI'
     });
 
     const profile2 = await ApplicantProfile.create({
       applicantId: 'APP002',
       name: 'Priya Patel',
-      age: 32,
+      panNumber: 'FGHIJ5678K',
+      aadhaarNumber: '876543210987',
+      age: 33,
       employmentType: 'Salaried',
       declaredMonthlyIncome: 95000,
       existingEMI: 28000,
       cibilScore: 720,
+      scoreCategory: 'Near-Prime (Asset-Rich)',
       activeLoans: 2,
       dpd: 0,
       writeOffs: 0,
       defaults: 0,
-      avgMonthlyBalance: 60000,
+      avgMonthlyBalance: 65000,
       monthlyCredits: 95000,
       bounceCount: 1,
       lastYearIncome: 1050000,
       currentYearIncome: 1180000,
-      mutualFunds: 500000,
-      savings: 100000
+      mutualFunds: 600000,
+      savings: 120000,
+      kycStatus: 'VERIFIED_NSDL_UIDAI'
     });
 
     const profile3 = await ApplicantProfile.create({
       applicantId: 'APP003',
       name: 'Amit Kumar',
-      age: 26,
+      panNumber: 'KLMNO9012P',
+      aadhaarNumber: '765432109876',
+      age: 27,
       employmentType: 'Salaried',
-      declaredMonthlyIncome: 60000,
-      existingEMI: 10000,
-      cibilScore: 650,
+      declaredMonthlyIncome: 55000,
+      existingEMI: 12000,
+      cibilScore: 640,
+      scoreCategory: 'Sub-Prime (High Risk)',
       activeLoans: 3,
       dpd: 30,
       writeOffs: 1,
       defaults: 0,
-      avgMonthlyBalance: 12000,
-      monthlyCredits: 50000,
+      avgMonthlyBalance: 14000,
+      monthlyCredits: 45000,
       bounceCount: 4,
       lastYearIncome: 650000,
       currentYearIncome: 720000,
       mutualFunds: 0,
-      savings: 5000
+      savings: 8000,
+      kycStatus: 'VERIFIED_NSDL_UIDAI'
     });
 
-    console.log('Applicant Profiles seeded: APP001, APP002, APP003');
+    console.log('Applicant Profiles seeded: APP001 (Rahul), APP002 (Priya), APP003 (Amit)');
 
     // Run BRE & Seed Initial Loan Applications
     const appsToSeed = [
