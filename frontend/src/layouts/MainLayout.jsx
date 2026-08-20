@@ -140,9 +140,18 @@ const MainLayout = () => {
           <div className="flex-1"></div>
           
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-[#181818] border border-[#2a2a2a] px-3.5 py-1.5 rounded-xl text-xs">
-              <span className="text-gray-400">Signed in as:</span>
-              <span className="text-amber-400 font-bold">{ROLE_LABELS[currentRole] || currentRole || 'Guest'}</span>
+            <div className="flex items-center gap-2 bg-[#181818] border border-[#333] hover:border-amber-500/40 px-3 py-1.5 rounded-xl text-xs transition-colors">
+              <span className="text-gray-400">Active Persona:</span>
+              <select
+                value={currentRole}
+                onChange={(e) => switchRole(e.target.value)}
+                className="bg-transparent text-amber-400 font-bold text-xs focus:outline-none cursor-pointer"
+              >
+                <option value={ROLES.ADMIN} className="bg-[#181818] text-white">👑 Policy Admin (Risk Head)</option>
+                <option value={ROLES.L1} className="bg-[#181818] text-white">🛡️ Credit Officer L1</option>
+                <option value={ROLES.L2} className="bg-[#181818] text-white">🛡️ Credit Officer L2</option>
+                <option value={ROLES.APPLICANT} className="bg-[#181818] text-white">👤 Applicant / Borrower</option>
+              </select>
             </div>
           </div>
         </header>

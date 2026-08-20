@@ -57,29 +57,55 @@ export const isValidEmailDomain = (email) => {
 };
 
 export const AuthProvider = ({ children }) => {
-  // Initialize from LocalStorage or default demo token
+  // Helper to parse JWT payload without external library
+  const parseJwt = (jwtToken) => {
+    try {
+      if (!jwtToken || !jwtToken.includes('.')) return null;
+      const base64Url = jwtToken.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      return JSON.parse(jsonPayload);
+    } catch (e) {
+      return null;
+    }
+  };
+
+  // Initialize from LocalStorage
   const [token, setToken] = useState(() => localStorage.getItem('bre_token') || 'demo-offline-token');
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('bre_user');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse saved user from storage:', e);
+    const savedToken = localStorage.getItem('bre_token');
+    const savedUser = localStorage.getItem('bre_user');
+
+    if (savedToken && savedToken.startsWith('mock-token-')) {
+      const role = savedToken.replace('mock-token-', '');
+      return { name: DEMO_USERS[role]?.name || 'Demo User', role };
+    }
+
+    if (savedToken && savedToken !== 'demo-offline-token') {
+      const decoded = parseJwt(savedToken);
+      if (decoded && decoded.role) {
+        return {
+          name: decoded.name || (savedUser ? JSON.parse(savedUser)?.name : 'User'),
+          email: decoded.email,
+          role: decoded.role,
+          id: decoded.id
+        };
       }
+    }
+
+    if (savedUser) {
+      try {
+        return JSON.parse(savedUser);
+      } catch (e) {}
     }
     return DEMO_USERS[ROLES.ADMIN];
   });
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    if (!localStorage.getItem('bre_token')) {
-      localStorage.setItem('bre_token', 'demo-offline-token');
-    }
-    if (!localStorage.getItem('bre_user')) {
-      localStorage.setItem('bre_user', JSON.stringify(DEMO_USERS[ROLES.ADMIN]));
-    }
-  }, []);
 
   const currentRole = user?.role || ROLES.ADMIN;
 
