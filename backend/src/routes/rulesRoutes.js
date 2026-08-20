@@ -3,7 +3,8 @@ import {
   getActiveRuleSet, 
   getAllRuleVersions, 
   getRuleSetByVersion, 
-  createNewRuleVersion 
+  createNewRuleVersion,
+  patchRuleAndCreateVersion
 } from '../controllers/rulesController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
@@ -16,5 +17,8 @@ router.get('/version/:version', protect, getRuleSetByVersion);
 
 // Version creation restricted to Policy Admin
 router.post('/new-version', protect, authorize('POLICY_ADMIN'), createNewRuleVersion);
+
+// Patch a single rule → create new version automatically
+router.post('/patch-version', protect, authorize('POLICY_ADMIN'), patchRuleAndCreateVersion);
 
 export default router;

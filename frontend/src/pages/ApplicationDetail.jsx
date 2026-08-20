@@ -515,110 +515,136 @@ const ApplicationDetail = () => {
         </div>
       </div>
 
-      {/* Policy Agility Tool: Evaluate Under Specific Version */}
-      <div className="bg-[#111] border border-[#333] rounded-xl p-6 shadow-lg space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#222]">
-          <div className="flex items-center gap-2">
-            <Scale className="w-5 h-5 text-indigo-400" />
-            <div>
-              <h3 className="font-bold text-white text-sm">Policy Version Simulator (Agility Demo)</h3>
-              <p className="text-xs text-gray-400">
-                Simulate how this application evaluates under different historical rule versions without altering original records.
-              </p>
+      {/* Re-Run Engine: Evaluate under different version */}
+      {isOfficerOrAdmin && ruleVersions.length > 0 && (
+        <div className="bg-[#111] border border-[#333] rounded-xl p-6 shadow-lg space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#222]">
+            <div className="flex items-center gap-2">
+              <Scale className="w-5 h-5 text-amber-400" />
+              <div>
+                <h3 className="font-bold text-white text-sm">Re-Run Engine</h3>
+                <p className="text-xs text-gray-400">
+                  Re-evaluate this application under a different rule version. Original decision is immutable.
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <select
-              value={selectedSimVersion}
-              onChange={(e) => setSelectedSimVersion(Number(e.target.value))}
-              className="bg-[#181818] border border-[#333] text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none"
-            >
-              {ruleVersions.map(v => (
-                <option key={v.version} value={v.version}>
-                  RuleSet v{v.version} {v.isActive ? '(Active)' : ''}
-                </option>
-              ))}
-              {ruleVersions.length === 0 && (
-                <>
-                  <option value={1}>RuleSet v1</option>
-                  <option value={2}>RuleSet v2</option>
-                </>
-              )}
-            </select>
-
-            <button
-              onClick={handleRunVersionSimulation}
-              disabled={isSimulating}
-              className="px-3.5 py-1.5 bg-white text-black font-bold rounded-lg text-xs hover:bg-gray-200 transition-all flex items-center gap-1 shadow-md disabled:opacity-50"
-            >
-              {isSimulating ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-              <span>Simulate</span>
-            </button>
+          {/* Current decision */}
+          <div className="bg-[#181818] border border-[#2a2a2a] rounded-xl p-4 flex items-center justify-between">
+            <div className="text-xs">
+              <div className="text-gray-500 mb-1">Current Decision</div>
+              <div className="font-bold text-white">{application.status}</div>
+            </div>
+            <div className="text-xs text-right">
+              <div className="text-gray-500 mb-1">Evaluated Under</div>
+              <span className="font-mono font-bold text-amber-400">Rule Set v{application.ruleSetVersion}</span>
+            </div>
           </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <label className="block text-[11px] text-gray-500 uppercase tracking-wider mb-1.5 font-semibold">
+                Select Target Version
+              </label>
+              <select
+                value={selectedSimVersion}
+                onChange={(e) => setSelectedSimVersion(Number(e.target.value))}
+                className="w-full bg-[#181818] border border-[#333] text-white text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-amber-500/50 transition-all"
+              >
+                {ruleVersions.map(v => (
+                  <option key={v.version} value={v.version}>
+                    v{v.version}{v.isActive ? ' (Active — Current)' : ''}{v.version === application.ruleSetVersion ? ' (Original)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="shrink-0 mt-5">
+              <button
+                onClick={() => navigate(`/applications/${id}/compare/${selectedSimVersion}`)}
+                disabled={selectedSimVersion === application.ruleSetVersion}
+                className="flex items-center gap-2 px-5 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl text-xs transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Re-Run & Compare
+              </button>
+            </div>
+          </div>
+
+          {selectedSimVersion === application.ruleSetVersion && (
+            <p className="text-[11px] text-gray-600 text-center">
+              Select a different version to compare. Current application was evaluated under v{application.ruleSetVersion}.
+            </p>
+          )}
         </div>
-
-        {simulationResult && (
-          <div className="bg-[#181818] border border-indigo-500/30 rounded-xl p-4 animate-in fade-in space-y-3">
-            <div className="flex justify-between items-center text-xs">
-              <span className="font-semibold text-indigo-400">Simulation Comparison Result</span>
-              <span className="text-gray-400 font-mono">Original: v{application.ruleSetVersion} ➔ Simulated: {simulationResult.reEvaluatedRecord?.evaluatedVersion}</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="bg-[#111] p-3 rounded-lg border border-[#333]">
-                <span className="text-gray-500 uppercase tracking-wider block mb-1">Original Record (v{application.ruleSetVersion})</span>
-                <div className="text-sm font-bold text-white">{application.status}</div>
-              </div>
-
-              <div className="bg-[#111] p-3 rounded-lg border border-indigo-500/40">
-                <span className="text-indigo-400 uppercase tracking-wider block mb-1">
-                  Simulated Decision ({simulationResult.reEvaluatedRecord?.evaluatedVersion})
-                </span>
-                <div className="text-sm font-bold text-white">
-                  {simulationResult.reEvaluatedRecord?.decision}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Immutable Audit Trail Timeline */}
       <div className="bg-[#111] rounded-xl border border-[#333] p-6 shadow-lg space-y-4">
-        <div className="flex items-center gap-2 pb-3 border-b border-[#222]">
-          <History className="w-4 h-4 text-gray-400" />
-          <h3 className="font-semibold text-white text-sm">Immutable Audit Trail</h3>
+        <div className="flex items-center justify-between pb-3 border-b border-[#222]">
+          <div className="flex items-center gap-2">
+            <History className="w-4 h-4 text-gray-400" />
+            <h3 className="font-semibold text-white text-sm">Immutable Audit Trail</h3>
+          </div>
+          <span className="text-[11px] text-gray-600">{auditLogs.length} entries — never deleted</span>
         </div>
 
-        <div className="space-y-4 text-xs">
-          {auditLogs.length === 0 ? (
-            <div className="text-gray-500 py-2">No previous audit modifications recorded.</div>
-          ) : (
-            auditLogs.map((log, idx) => (
-              <div key={idx} className="flex items-start gap-3 p-3 bg-[#181818] border border-[#2a2a2a] rounded-lg">
-                <div className="w-7 h-7 rounded-full bg-[#252525] flex items-center justify-center text-gray-400 shrink-0 mt-0.5">
-                  <User className="w-3.5 h-3.5" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-center mb-0.5">
-                    <span className="font-semibold text-white">{log.evaluatedBy}</span>
-                    <span className="text-[10px] text-gray-500 font-mono">
-                      {new Date(log.timestamp || log.createdAt).toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="text-gray-300">
-                    Decision: <strong className="text-white">{log.decision}</strong> (RuleSet v{log.ruleSetVersion})
-                  </p>
-                  {log.evaluationSnapshot?.officerNotes && (
-                    <p className="text-gray-400 mt-1 italic">
-                      "{log.evaluationSnapshot.officerNotes}"
-                    </p>
-                  )}
-                </div>
-              </div>
-            ))
+        <div className="relative">
+          {auditLogs.length > 1 && (
+            <div className="absolute left-[13px] top-3 bottom-3 w-px bg-[#2a2a2a]" />
           )}
+          <div className="space-y-3 text-xs">
+            {auditLogs.length === 0 ? (
+              <div className="text-gray-500 py-2">No audit modifications recorded.</div>
+            ) : (
+              auditLogs.map((log, idx) => {
+                const isReRun = log.evaluatedBy?.toLowerCase().includes('re-run');
+                const decisionColor = log.decision === 'APPROVED' || log.decision === 'APPROVED_VIA_EXCEPTION'
+                  ? 'text-emerald-400' : log.decision === 'REJECTED' || log.decision === 'REJECTED_VIA_EXCEPTION'
+                  ? 'text-red-400' : 'text-amber-400';
+                return (
+                  <div key={idx} className="flex items-start gap-3">
+                    <div className={clsx(
+                      'w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 relative z-10 border',
+                      isReRun
+                        ? 'bg-amber-500/10 border-amber-500/30'
+                        : 'bg-[#252525] border-[#333]'
+                    )}>
+                      {isReRun
+                        ? <RefreshCw className="w-3 h-3 text-amber-400" />
+                        : <User className="w-3.5 h-3.5 text-gray-400" />
+                      }
+                    </div>
+                    <div className="flex-1 bg-[#181818] border border-[#2a2a2a] rounded-xl p-3.5">
+                      <div className="flex justify-between items-start gap-2 mb-1">
+                        <span className="font-semibold text-white">{log.evaluatedBy}</span>
+                        <span className="text-[10px] text-gray-500 font-mono shrink-0">
+                          {new Date(log.timestamp || log.createdAt).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-400">Decision:</span>
+                        <span className={clsx('font-bold', decisionColor)}>{log.decision}</span>
+                        <span className="text-gray-600">·</span>
+                        <span className="text-gray-500 font-mono">RuleSet v{log.ruleSetVersion}</span>
+                      </div>
+                      {log.evaluationSnapshot?.officerNotes && (
+                        <p className="text-gray-400 mt-1.5 italic border-t border-[#222] pt-1.5">
+                          "{log.evaluationSnapshot.officerNotes}"
+                        </p>
+                      )}
+                      {isReRun && log.evaluationSnapshot?.originalDecision && (
+                        <p className="text-[11px] text-amber-400/70 mt-1">
+                          Re-run only — original decision ({log.evaluationSnapshot.originalDecision} under v{log.evaluationSnapshot.originalVersion}) remains unchanged.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
     </div>

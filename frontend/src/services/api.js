@@ -71,6 +71,10 @@ export const applicationApi = {
     const res = await api.get(`/applications/${encodeURIComponent(id)}/evaluate-version/${targetVersion}`);
     return res.data;
   },
+  reRunAndSave: async (id, targetVersion) => {
+    const res = await api.post(`/applications/${encodeURIComponent(id)}/rerun/${targetVersion}`);
+    return res.data;
+  },
   exceptionDecision: async (id, payload) => {
     const res = await api.post(`/applications/${encodeURIComponent(id)}/exception`, payload);
     return res.data;
@@ -97,6 +101,10 @@ export const rulesApi = {
   },
   createVersion: async (payload) => {
     const res = await api.post('/rules/new-version', payload);
+    return res.data;
+  },
+  patchVersion: async (payload) => {
+    const res = await api.post('/rules/patch-version', payload);
     return res.data;
   },
 };
