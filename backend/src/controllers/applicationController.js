@@ -225,13 +225,15 @@ export const getAllApplications = async (req, res) => {
         }
         return { $or: applicantConditions };
       } else if (role === 'CREDIT_OFFICER_L1') {
-        // L1 officers only see L1 exception queue items
-        baseFilter.status = 'EXCEPTION_L1_REQUIRED';
+        if (baseFilter.status) {
+          baseFilter.status = { $in: ['EXCEPTION_REQUIRED', 'EXCEPTION_L1_REQUIRED'] };
+        }
       } else if (role === 'CREDIT_OFFICER_L2') {
-        // L2 officers only see escalated L2 exception queue items
-        baseFilter.status = 'EXCEPTION_L2_REQUIRED';
+        if (baseFilter.status) {
+          baseFilter.status = { $in: ['EXCEPTION_REQUIRED', 'EXCEPTION_L2_REQUIRED'] };
+        }
       }
-      // POLICY_ADMIN sees everything — no additional filter
+      // Officers and Admins see full pipeline on Dashboard & Ledger
       return baseFilter;
     };
 
@@ -260,10 +262,14 @@ export const getAllApplications = async (req, res) => {
         (userName && a.profileSnapshot?.name === userName) ||
         (userEmail && a.profileSnapshot?.email === userEmail)
       );
-    } else if (role === 'CREDIT_OFFICER_L1') {
-      memApps = memApps.filter(a => a.status === 'EXCEPTION_L1_REQUIRED');
-    } else if (role === 'CREDIT_OFFICER_L2') {
-      memApps = memApps.filter(a => a.status === 'EXCEPTION_L2_REQUIRED');
+    } else if (status) {
+      if (role === 'CREDIT_OFFICER_L1') {
+        memApps = memApps.filter(a => a.status === 'EXCEPTION_REQUIRED' || a.status === 'EXCEPTION_L1_REQUIRED');
+      } else if (role === 'CREDIT_OFFICER_L2') {
+        memApps = memApps.filter(a => a.status === 'EXCEPTION_REQUIRED' || a.status === 'EXCEPTION_L2_REQUIRED');
+      } else {
+        memApps = memApps.filter(a => a.status === status);
+      }
     }
 
     applications = (status && role === 'POLICY_ADMIN') ? memApps.filter(a => a.status === status) : memApps;
