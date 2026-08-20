@@ -284,10 +284,10 @@ const Dashboard = () => {
                   <span>API & Engine Latency</span>
                   <span className="text-white font-mono font-medium">{latency}ms</span>
                 </div>
-                <div className="w-full bg-[#222] rounded-full h-1.5 overflow-hidden">
+                <div className="w-full bg-[#1c1c1c] border border-[#2a2a2a] h-2 overflow-hidden">
                   <div 
-                    className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" 
-                    style={{ width: `${Math.min(100, Math.max(10, latency / 5))}%` }} 
+                    className="bg-white h-full transition-all duration-500" 
+                    style={{ width: `${Math.min(100, Math.max(15, latency ? Math.min(100, (latency / 1500) * 100) : 40))}%` }} 
                   />
                 </div>
               </div>
@@ -295,10 +295,10 @@ const Dashboard = () => {
               <div>
                 <div className="flex justify-between text-xs text-gray-400 mb-1.5">
                   <span>Active Rule Set</span>
-                  <span className="text-amber-400 font-mono font-medium">v{activeRuleSet?.version || '1'} (Active)</span>
+                  <span className="text-white font-mono font-medium">v{activeRuleSet?.version || '1'} (Active)</span>
                 </div>
-                <div className="w-full bg-[#222] rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-amber-500 h-1.5 rounded-full w-full" />
+                <div className="w-full bg-[#1c1c1c] border border-[#2a2a2a] h-2 overflow-hidden">
+                  <div className="bg-white h-full w-full" />
                 </div>
                 <p className="text-[11px] text-gray-500 mt-1">
                   {activeRuleSet?.rules?.length || 6} configurable risk rules configured
