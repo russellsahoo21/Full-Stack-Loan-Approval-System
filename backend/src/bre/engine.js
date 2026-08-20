@@ -285,9 +285,9 @@ export const runBRE = (profile, requestedLoanAmount, requestedTenureMonths, rule
     }
 
     scorecard.push({
-      ruleCode: rule.ruleCode,
-      description: rule.description,
-      reasonCode: rule.reasonCode,
+      ruleCode: rule.ruleCode || rule.id || `R00${scorecard.length + 1}`,
+      description: rule.description || 'Policy Rule',
+      reasonCode: rule.reasonCode || 'POLICY_EVALUATION',
       thresholdRequired: `${rule.parameter} ${rule.operator} ${rule.threshold}`,
       actualValue: actualValue === undefined || actualValue === null || actualValue === '' ? 'MISSING' : String(actualValue),
       passed,

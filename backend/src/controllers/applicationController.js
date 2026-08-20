@@ -6,6 +6,7 @@ import { AuditLog } from '../models/AuditLog.js';
 import { runBRE } from '../bre/engine.js';
 import { DEFAULT_RULE_SET, IN_MEMORY_RULE_SETS } from '../bre/policy.js';
 import { isDbConnected } from '../config/db.js';
+import { fetchBureauReport } from '../services/bureauService.js';
 
 const memoryRuleSets = IN_MEMORY_RULE_SETS;
 
