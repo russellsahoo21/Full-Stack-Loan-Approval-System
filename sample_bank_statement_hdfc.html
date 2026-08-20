@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>HDFC Bank Statement - Rahul Sharma</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 11px; color: #222; background: #fff; padding: 30px; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #003580; padding-bottom: 12px; margin-bottom: 16px; }
+    .bank-name { font-size: 22px; font-weight: bold; color: #003580; }
+    .bank-tag { font-size: 10px; color: #666; margin-top: 2px; }
+    .stmt-title { text-align: right; }
+    .stmt-title h2 { font-size: 14px; color: #003580; }
+    .stmt-title p { font-size: 10px; color: #555; margin-top: 2px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; background: #f5f8ff; border: 1px solid #dce4f5; border-radius: 6px; padding: 12px; }
+    .info-block p { margin-bottom: 4px; }
+    .label { color: #555; font-size: 10px; }
+    .value { font-weight: bold; font-size: 11px; }
+    .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+    .summary-card { background: #f0f4ff; border: 1px solid #c8d8f8; border-radius: 6px; padding: 10px; text-align: center; }
+    .summary-card .sc-label { font-size: 9px; color: #555; text-transform: uppercase; margin-bottom: 3px; }
+    .summary-card .sc-value { font-size: 14px; font-weight: bold; color: #003580; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    thead tr { background: #003580; color: white; }
+    thead th { padding: 7px 8px; text-align: left; font-size: 10px; }
+    tbody tr:nth-child(even) { background: #f7f9ff; }
+    tbody td { padding: 6px 8px; border-bottom: 1px solid #e5e9f5; font-size: 10px; }
+    .credit { color: #1a7a3a; font-weight: bold; }
+    .debit { color: #c0392b; }
+    .footer { border-top: 1px solid #ccc; padding-top: 10px; font-size: 9px; color: #777; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 9px; font-weight: bold; }
+    .badge-green { background: #d4f0e0; color: #1a7a3a; }
+    .badge-blue { background: #dce8ff; color: #003580; }
+    @media print {
+      body { padding: 15px; }
+      @page { margin: 1cm; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Bank Header -->
+  <div class="header">
+    <div>
+      <div class="bank-name">🏦 HDFC BANK</div>
+      <div class="bank-tag">We understand your world</div>
+    </div>
+    <div class="stmt-title">
+      <h2>ACCOUNT STATEMENT</h2>
+      <p>Period: 01-Feb-2025 to 31-Jul-2025 (6 Months)</p>
+      <p>Generated: 21-Aug-2025 | Branch: Noida Sector-18</p>
+    </div>
+  </div>
+
+  <!-- Account Info -->
+  <div class="info-grid">
+    <div class="info-block">
+      <p><span class="label">Account Holder:</span></p>
+      <p><span class="value">RAHUL SHARMA</span></p>
+      <p style="margin-top:6px"><span class="label">Account Number:</span></p>
+      <p><span class="value">XXXX XXXX 4821</span> &nbsp; <span class="badge badge-blue">SAVINGS</span></p>
+      <p style="margin-top:6px"><span class="label">PAN Card:</span></p>
+      <p><span class="value">ABCPA1431F</span></p>
+    </div>
+    <div class="info-block">
+      <p><span class="label">Date of Birth:</span> <span class="value">12-Mar-1996 (Age: 29)</span></p>
+      <p style="margin-top:4px"><span class="label">Employment:</span> <span class="value">Salaried — TechCorp Pvt Ltd</span></p>
+      <p style="margin-top:4px"><span class="label">IFSC Code:</span> <span class="value">HDFC0003218</span></p>
+      <p style="margin-top:4px"><span class="label">CIBIL Score:</span> <span class="value" style="color:#1a7a3a">750</span> &nbsp; <span class="badge badge-green">PRIME</span></p>
+      <p style="margin-top:4px"><span class="label">Active Loans:</span> <span class="value">1 (Vehicle Loan - ₹12,500/mo EMI)</span></p>
+    </div>
+  </div>
+
+  <!-- Summary Metrics -->
+  <div class="summary">
+    <div class="summary-card">
+      <div class="sc-label">Avg Monthly Salary</div>
+      <div class="sc-value">₹75,000</div>
+    </div>
+    <div class="summary-card">
+      <div class="sc-label">Avg Monthly Balance</div>
+      <div class="sc-value">₹24,300</div>
+    </div>
+    <div class="summary-card">
+      <div class="sc-label">UPI Credits / Month</div>
+      <div class="sc-value">₹68,000</div>
+    </div>
+    <div class="summary-card">
+      <div class="sc-label">Cheque Bounces</div>
+      <div class="sc-value" style="color:#1a7a3a">0</div>
+    </div>
+  </div>
+
+  <!-- Transactions -->
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Description</th>
+        <th>Ref No.</th>
+        <th>Debit (₹)</th>
+        <th>Credit (₹)</th>
+        <th>Balance (₹)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>01-Feb-25</td><td>Opening Balance</td><td>—</td><td></td><td></td><td class="value">22,450.00</td></tr>
+      <tr><td>01-Feb-25</td><td>NEFT/SALARY - TechCorp Pvt Ltd</td><td>NEFT2502011</td><td></td><td class="credit">75,000.00</td><td>97,450.00</td></tr>
+      <tr><td>03-Feb-25</td><td>UPI/PhonePe-Freelance Payment/Ravi</td><td>UPI250203X</td><td></td><td class="credit">8,500.00</td><td>1,05,950.00</td></tr>
+      <tr><td>05-Feb-25</td><td>NACH/EMI - Vehicle Loan HDFC</td><td>NACH250205</td><td class="debit">12,500.00</td><td></td><td>93,450.00</td></tr>
+      <tr><td>07-Feb-25</td><td>BBPS/Electricity - NPCL</td><td>BBPS250207</td><td class="debit">1,840.00</td><td></td><td>91,610.00</td></tr>
+      <tr><td>08-Feb-25</td><td>UPI/Swiggy Order</td><td>UPI250208A</td><td class="debit">520.00</td><td></td><td>91,090.00</td></tr>
+      <tr><td>10-Feb-25</td><td>UPI/Rent Payment - Housing Society</td><td>UPI250210B</td><td class="debit">18,000.00</td><td></td><td>73,090.00</td></tr>
+      <tr><td>12-Feb-25</td><td>BBPS/Mobile Postpaid - Airtel</td><td>BBPS250212</td><td class="debit">499.00</td><td></td><td>72,591.00</td></tr>
+      <tr><td>15-Feb-25</td><td>UPI/Client Payment - Freelance</td><td>UPI250215C</td><td></td><td class="credit">12,000.00</td><td>84,591.00</td></tr>
+      <tr><td>28-Feb-25</td><td>Closing Balance Feb</td><td>—</td><td></td><td></td><td class="value">24,100.00</td></tr>
+
+      <tr style="background:#eef2ff"><td>01-Mar-25</td><td>NEFT/SALARY - TechCorp Pvt Ltd</td><td>NEFT2503011</td><td></td><td class="credit">75,000.00</td><td>99,100.00</td></tr>
+      <tr><td>05-Mar-25</td><td>NACH/EMI - Vehicle Loan HDFC</td><td>NACH250305</td><td class="debit">12,500.00</td><td></td><td>86,600.00</td></tr>
+      <tr><td>06-Mar-25</td><td>BBPS/Electricity - NPCL</td><td>BBPS250306</td><td class="debit">1,620.00</td><td></td><td>84,980.00</td></tr>
+      <tr><td>10-Mar-25</td><td>UPI/Rent - Housing Society</td><td>UPI250310D</td><td class="debit">18,000.00</td><td></td><td>66,980.00</td></tr>
+      <tr><td>14-Mar-25</td><td>UPI/Freelance - Anuj Kapoor</td><td>UPI250314E</td><td></td><td class="credit">9,500.00</td><td>76,480.00</td></tr>
+      <tr><td>31-Mar-25</td><td>Closing Balance Mar</td><td>—</td><td></td><td></td><td class="value">25,200.00</td></tr>
+
+      <tr style="background:#eef2ff"><td>01-Apr-25</td><td>NEFT/SALARY - TechCorp Pvt Ltd</td><td>NEFT2504011</td><td></td><td class="credit">75,000.00</td><td>1,00,200.00</td></tr>
+      <tr><td>05-Apr-25</td><td>NACH/EMI - Vehicle Loan HDFC</td><td>NACH250405</td><td class="debit">12,500.00</td><td></td><td>87,700.00</td></tr>
+      <tr><td>30-Apr-25</td><td>Closing Balance Apr</td><td>—</td><td></td><td></td><td class="value">23,800.00</td></tr>
+
+      <tr style="background:#eef2ff"><td>01-May-25</td><td>NEFT/SALARY - TechCorp Pvt Ltd</td><td>NEFT2505011</td><td></td><td class="credit">75,000.00</td><td>98,800.00</td></tr>
+      <tr><td>31-May-25</td><td>Closing Balance May</td><td>—</td><td></td><td></td><td class="value">24,500.00</td></tr>
+
+      <tr style="background:#eef2ff"><td>01-Jun-25</td><td>NEFT/SALARY - TechCorp Pvt Ltd</td><td>NEFT2506011</td><td></td><td class="credit">75,000.00</td><td>99,500.00</td></tr>
+      <tr><td>30-Jun-25</td><td>Closing Balance Jun</td><td>—</td><td></td><td></td><td class="value">23,900.00</td></tr>
+
+      <tr style="background:#eef2ff"><td>01-Jul-25</td><td>NEFT/SALARY - TechCorp Pvt Ltd</td><td>NEFT2507011</td><td></td><td class="credit">75,000.00</td><td>98,900.00</td></tr>
+      <tr><td>31-Jul-25</td><td>Closing Balance Jul</td><td>—</td><td></td><td></td><td class="value">24,300.00</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 6-Month Summary -->
+  <table style="width:50%; margin-left: auto; margin-bottom: 16px;">
+    <thead>
+      <tr><th colspan="2">6-Month Financial Summary</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Total Salary Credits (6 mo)</td><td class="credit" style="text-align:right">₹4,50,000</td></tr>
+      <tr><td>Total UPI / Other Credits</td><td class="credit" style="text-align:right">₹58,000</td></tr>
+      <tr><td>Total EMI Deductions</td><td class="debit" style="text-align:right">₹75,000</td></tr>
+      <tr><td>NACH / Cheque Bounces</td><td style="text-align:right"><b>NIL</b></td></tr>
+      <tr><td>Avg Monthly Closing Balance</td><td style="text-align:right"><b>₹24,300</b></td></tr>
+    </tbody>
+  </table>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>This is a computer-generated statement and does not require a signature. HDFC Bank Ltd., Registered Office: HDFC Bank House, Senapati Bapat Marg, Lower Parel, Mumbai - 400 013.</p>
+    <p style="margin-top:4px">For disputes contact: 1800-258-3838 | www.hdfcbank.com | CIN: L65920MH1994PLC080618</p>
+  </div>
+
+</body>
+</html>

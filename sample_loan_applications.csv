@@ -1,4 +1,5 @@
 applicantId,name,panNumber,aadhaarNumber,age,employmentType,declaredMonthlyIncome,existingEMI,requestedLoanAmount,requestedTenureMonths,cibilScore,activeLoans,dpd,writeOffs,bounceCount,avgMonthlyBalance,monthlyCredits,mutualFunds,savings,expectedOutcome
+APP201,Sumit Kumar (Student / Intern),NTCPA9988G,912345678901,21,Student,38000,0,45000,12,-1,0,0,0,0,16000,38000,15000,22000,APPROVED_VIA_ALTERNATE_CASHFLOW (NTC Student UPI Engine)
 APP101,Rahul Sharma,ABCPA1431F,987654321098,23,Self-Employed,75000,11250,600000,60,750,1,0,0,0,45000,75000,250000,80000,APPROVED (Prime Score + Low FOIR)
 APP102,Priya Patel,BEJPL1618S,985954191117,24,Salaried,61200,21420,1150000,60,716,3,0,0,1,30600,61200,525000,128000,EXCEPTION_REQUIRED (FOIR > 50% with High Asset Buffer)
 APP103,Amit Kumar,CHQPW1805F,984254061136,25,Salaried,46600,11650,700000,36,612,5,90,1,5,12000,46600,0,6000,REJECTED (Active Write-off / DPD Knockout)

@@ -185,6 +185,18 @@ export const aiApi = {
   },
 };
 
+// Statement Extraction Endpoint
+export const extractApi = {
+  extractStatement: async (formDataObj) => {
+    const res = await api.post('/extract-statement', formDataObj, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return res.data;
+  },
+};
+
 // Health Check Endpoint
 export const healthApi = {
   getHealth: async () => {

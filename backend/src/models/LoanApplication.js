@@ -58,6 +58,9 @@ const loanApplicationSchema = new mongoose.Schema({
     bounceCount: { type: Number },
     mutualFunds: { type: Number },
     savings: { type: Number },
+    upiMonthlyCredits: { type: Number },
+    utilityTrackRecord: { type: String },
+    employmentVintageYears: { type: Number },
     bureauSource: { type: String }
   },
 
@@ -72,6 +75,19 @@ const loanApplicationSchema = new mongoose.Schema({
   l2DecisionBy: { type: String },
   l2DecisionAt: { type: Date },
   l2OfficerNotes: { type: String },
+
+  alternateData: {
+    isNtc: { type: Boolean, default: false },
+    alternateTrustScore: { type: Number },
+    safeCreditCap: { type: Number, default: 150000 },
+    breakdown: [{
+      factor: { type: String },
+      points: { type: Number },
+      maxPoints: { type: Number },
+      status: { type: String },
+      detail: { type: String }
+    }]
+  },
   
   exceptionDetails: {
     exceptionLevel: { type: String },

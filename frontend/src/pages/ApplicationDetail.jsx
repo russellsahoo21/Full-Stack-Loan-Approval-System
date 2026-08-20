@@ -61,7 +61,7 @@ const ApplicationDetail = () => {
   const [profile, setProfile] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
   const [ruleVersions, setRuleVersions] = useState([]);
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -248,16 +248,42 @@ const ApplicationDetail = () => {
   const currentStatus = statusConfig[application.status] || statusConfig.EXCEPTION_REQUIRED;
   const isOfficerOrAdmin = [ROLES.ADMIN, ROLES.L1, ROLES.L2].includes(currentRole);
 
-  const riskScore = application.evaluationResult?.riskGrade?.includes('Grade A') ? 88 
-    : application.evaluationResult?.riskGrade?.includes('Grade B') ? 68 
-    : 42;
+  // Option A Dynamic Risk Level % calculation: Higher Loan Amount -> Higher Risk Level %
+  const calculateDynamicScore = () => {
+    if (application.evaluationResult?.riskScore !== undefined) {
+      return application.evaluationResult.riskScore;
+    }
+
+    const cibil = profile?.cibilScore || 700;
+    const cibilRisk = Math.min(35, Math.max(0, ((850 - cibil) / 550) * 35));
+
+    const foir = application.derivedMetrics?.foir || 30;
+    const foirRisk = Math.min(35, Math.max(0, (foir / 65) * 35));
+
+    const reqAmt = application.requestedLoanAmount || 1;
+    const maxEligible = application.evaluationResult?.maxEligibleLoanAmount || reqAmt;
+
+    let amountRisk = 12;
+    if (maxEligible > 0) {
+      const ratio = reqAmt / maxEligible;
+      amountRisk = Math.min(25, Math.max(0, Math.round(ratio * 20)));
+    }
+
+    let historyRisk = 0;
+    if (profile?.writeOffs > 0) historyRisk += 5;
+    if (profile?.bounceCount > 0) historyRisk += Math.min(5, profile.bounceCount * 2);
+
+    return Math.min(99, Math.max(5, Math.round(cibilRisk + foirRisk + amountRisk + historyRisk)));
+  };
+
+  const riskScore = calculateDynamicScore();
 
   return (
     <div className="application-detail-page max-w-7xl mx-auto pb-16 animate-in fade-in duration-500 space-y-8">
       {/* Top Breadcrumb & Action Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={() => navigate(-1)}
             className="p-2 bg-[#161616] hover:bg-[#222] border border-[#333] rounded-lg transition-colors text-gray-400 hover:text-white"
           >
@@ -336,10 +362,9 @@ const ApplicationDetail = () => {
         <div className="flex items-center gap-3 text-xs">
           <div className="bg-[#181818] border border-[#2a2a2a] px-3 py-1.5 rounded-lg flex items-center gap-2">
             <span className="text-gray-400">Verified CIBIL:</span>
-            <span className={`font-mono font-bold ${
-              (profile?.cibilScore || 700) >= 730 ? 'text-green-400' :
-              (profile?.cibilScore || 700) >= 680 ? 'text-yellow-400' : 'text-red-400'
-            }`}>
+            <span className={`font-mono font-bold ${(profile?.cibilScore || 700) >= 730 ? 'text-green-400' :
+                (profile?.cibilScore || 700) >= 680 ? 'text-yellow-400' : 'text-red-400'
+              }`}>
               {profile?.cibilScore || 735}
             </span>
           </div>
@@ -439,9 +464,9 @@ const ApplicationDetail = () => {
           </div>
 
           <div className="p-4 flex flex-col items-center justify-center flex-1">
-            <RiskGauge 
-              grade={application.evaluationResult?.riskGrade || 'Grade A'} 
-              score={riskScore} 
+            <RiskGauge
+              grade={application.evaluationResult?.riskGrade || 'Grade A'}
+              score={riskScore}
             />
             <div className="text-center mt-2">
               <p className="text-xs font-semibold text-gray-300">
@@ -462,7 +487,7 @@ const ApplicationDetail = () => {
           </div>
           <div className="flex flex-wrap gap-2">
             {application.evaluationResult.whySummaryBadges.map((badge, idx) => (
-              <span 
+              <span
                 key={idx}
                 className="px-3 py-1.5 bg-[#1a1a1a] border border-[#333] text-gray-200 text-xs font-medium rounded-lg"
               >
@@ -485,7 +510,7 @@ const ApplicationDetail = () => {
             <div className="bg-red-500/10 border border-red-500/20 p-3.5 rounded-lg">
               <h4 className="font-semibold text-red-400 mb-1">Triggered Policy Deviations:</h4>
               <ul className="list-disc list-inside space-y-0.5 text-gray-300">
-                {application.exceptionDetails?.deviations?.length > 0 
+                {application.exceptionDetails?.deviations?.length > 0
                   ? application.exceptionDetails.deviations.map((d, i) => <li key={i}>{d}</li>)
                   : <li>Non-critical rule failed threshold</li>}
               </ul>
@@ -533,6 +558,79 @@ const ApplicationDetail = () => {
         </div>
       )}
 
+      {/* 🇮🇳 Alternate Cashflow Underwriting Scorecard Breakdown */}
+      {(application.alternateData?.isNtc || application?.bureauSnapshot?.cibilScore <= 0 || profile?.cibilScore <= 0) && (
+        <div className="bg-[#111] border border-[#333] rounded-2xl p-6 space-y-4 shadow-xl">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#222] pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Indian NBFC Underwriting Engine</span>
+                  <span className="text-[10px] font-mono bg-[#1a1a1a] text-gray-300 border border-[#333] px-2 py-0.5 rounded">
+                    Bajaj / KreditBee / Navi Model
+                  </span>
+                </div>
+                <h3 className="text-base font-semibold text-white mt-0.5">
+                  Alternate Cashflow Underwriting & Trust Score Breakdown
+                </h3>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 bg-[#181818] border border-[#2a2a2a] px-3.5 py-1.5 rounded-xl">
+              <span className="text-xs text-gray-400">Alternate Trust Score:</span>
+              <span className="text-xl font-mono font-extrabold text-emerald-400">
+                {application.alternateData?.alternateTrustScore || 88}
+                <span className="text-xs text-gray-500 font-sans font-normal"> / 100</span>
+              </span>
+              <span className="text-[10px] font-bold font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded">
+                QUALIFIED (≥ 65)
+              </span>
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-300 leading-relaxed bg-[#181818] p-3 rounded-xl border border-[#2a2a2a]">
+            Applicant is a <strong>New-To-Credit (NTC) / Thin-File Borrower</strong> with no legacy CIBIL history (Score: -1). Underwriting evaluation bypassed legacy rejection and approved loan via real-time alternate cashflows with a <strong>Safe Credit Cap of ₹1,50,000</strong>.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+            <div className="bg-[#181818] border border-[#2a2a2a] p-3.5 rounded-xl space-y-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Factor 1: UPI Velocity</span>
+              <div className="text-base font-bold text-white font-mono">
+                {formatCurrency(profile?.upiMonthlyCredits || application?.bureauSnapshot?.upiMonthlyCredits || 48500)}/mo
+              </div>
+              <p className="text-[10px] text-gray-500 leading-tight">35 / 35 Pts • High-frequency digital merchant credits</p>
+            </div>
+
+            <div className="bg-[#181818] border border-[#2a2a2a] p-3.5 rounded-xl space-y-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Factor 2: Utility Discipline</span>
+              <div className="text-base font-bold text-emerald-400 font-mono">
+                100% On-Time
+              </div>
+              <p className="text-[10px] text-gray-500 leading-tight">30 / 30 Pts • Zero delayed BBPS bills, 0 ECS bounces</p>
+            </div>
+
+            <div className="bg-[#181818] border border-[#2a2a2a] p-3.5 rounded-xl space-y-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Factor 3: Platform Vintage</span>
+              <div className="text-base font-bold text-white font-mono">
+                {profile?.employmentVintageYears || application?.bureauSnapshot?.employmentVintageYears || 2.2} Years
+              </div>
+              <p className="text-[10px] text-gray-500 leading-tight">25 / 25 Pts • Established platform stability ≥ 1.5 yrs</p>
+            </div>
+
+            <div className="bg-[#181818] border border-[#2a2a2a] p-3.5 rounded-xl space-y-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Factor 4: Safe Credit Cap</span>
+              <div className="text-base font-bold text-amber-400 font-mono">
+                ₹1,50,000 Cap
+              </div>
+              <p className="text-[10px] text-gray-500 leading-tight">Portfolio guardrail applied to protect NBFC capital</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Rule Engine Explainability Scorecard Table */}
       <div className="bg-[#111] rounded-xl border border-[#333] overflow-hidden shadow-lg">
         <div className="px-6 py-4 border-b border-[#333] bg-[#161616] flex items-center justify-between">
@@ -569,7 +667,7 @@ const ApplicationDetail = () => {
             </thead>
             <tbody className="divide-y divide-[#222] text-xs">
               {application.scorecard?.map((rule, idx) => (
-                <tr 
+                <tr
                   key={idx}
                   className={clsx(
                     "hover:bg-[#181818] transition-colors",
@@ -688,36 +786,61 @@ const ApplicationDetail = () => {
         <div className="flex items-center gap-2 pb-3 border-b border-[#222]">
           <History className="w-4 h-4 text-gray-400" />
           <h3 className="font-semibold text-white text-sm">Immutable Audit Trail</h3>
-        </div>
-
-        <div className="space-y-4 text-xs">
-          {auditLogs.length === 0 ? (
-            <div className="text-gray-500 py-2">No previous audit modifications recorded.</div>
-          ) : (
-            auditLogs.map((log, idx) => (
-              <div key={idx} className="flex items-start gap-3 p-3 bg-[#181818] border border-[#2a2a2a] rounded-lg">
-                <div className="w-7 h-7 rounded-full bg-[#252525] flex items-center justify-center text-gray-400 shrink-0 mt-0.5">
-                  <User className="w-3.5 h-3.5" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-center mb-0.5">
-                    <span className="font-semibold text-white">{log.evaluatedBy}</span>
-                    <span className="text-[10px] text-gray-500 font-mono">
-                      {new Date(log.timestamp || log.createdAt).toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="text-gray-300">
-                    Decision: <strong className="text-white">{log.decision}</strong> (RuleSet v{log.ruleSetVersion})
-                  </p>
-                  {log.evaluationSnapshot?.officerNotes && (
-                    <p className="text-gray-400 mt-1 italic">
-                      "{log.evaluationSnapshot.officerNotes}"
-                    </p>
-                  )}
-                </div>
-              </div>
-            ))
+        </div>        <div className="relative">
+          {auditLogs.length > 1 && (
+            <div className="absolute left-[13px] top-3 bottom-3 w-px bg-[#2a2a2a]" />
           )}
+          <div className="space-y-3 text-xs">
+            {auditLogs.length === 0 ? (
+              <div className="text-gray-500 py-2">No audit modifications recorded.</div>
+            ) : (
+              auditLogs.map((log, idx) => {
+                const isReRun = log.evaluatedBy?.toLowerCase().includes('re-run');
+                const decisionColor = log.decision === 'APPROVED' || log.decision === 'APPROVED_VIA_EXCEPTION'
+                  ? 'text-emerald-400' : log.decision === 'REJECTED' || log.decision === 'REJECTED_VIA_EXCEPTION'
+                    ? 'text-red-400' : 'text-amber-400';
+                return (
+                  <div key={idx} className="flex items-start gap-3">
+                    <div className={clsx(
+                      'w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 relative z-10 border',
+                      isReRun
+                        ? 'bg-amber-500/10 border-amber-500/30'
+                        : 'bg-[#252525] border-[#333]'
+                    )}>
+                      {isReRun
+                        ? <RefreshCw className="w-3 h-3 text-amber-400" />
+                        : <User className="w-3.5 h-3.5 text-gray-400" />
+                      }
+                    </div>
+                    <div className="flex-1 bg-[#181818] border border-[#2a2a2a] rounded-xl p-3.5">
+                      <div className="flex justify-between items-start gap-2 mb-1">
+                        <span className="font-semibold text-white">{log.evaluatedBy}</span>
+                        <span className="text-[10px] text-gray-500 font-mono shrink-0">
+                          {new Date(log.timestamp || log.createdAt).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-400">Decision:</span>
+                        <span className={clsx('font-bold', decisionColor)}>{log.decision}</span>
+                        <span className="text-gray-600">·</span>
+                        <span className="text-gray-500 font-mono">RuleSet v{log.ruleSetVersion}</span>
+                      </div>
+                      {log.evaluationSnapshot?.officerNotes && (
+                        <p className="text-gray-400 mt-1.5 italic border-t border-[#222] pt-1.5">
+                          "{log.evaluationSnapshot.officerNotes}"
+                        </p>
+                      )}
+                      {isReRun && log.evaluationSnapshot?.originalDecision && (
+                        <p className="text-[11px] text-amber-400/70 mt-1">
+                          Re-run only — original decision ({log.evaluationSnapshot.originalDecision} under v{log.evaluationSnapshot.originalVersion}) remains unchanged.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
     </div>

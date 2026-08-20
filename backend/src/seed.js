@@ -130,13 +130,42 @@ const seedData = async () => {
       savings: 5000
     });
 
-    console.log('Applicant Profiles seeded: APP001, APP002, APP003');
+    const profile4 = await ApplicantProfile.create({
+      applicantId: 'APP201',
+      name: 'Sumit Kumar (Student / Intern)',
+      panNumber: 'NTCPA9988G',
+      aadhaarNumber: '912345678901',
+      age: 21,
+      employmentType: 'Student',
+      declaredMonthlyIncome: 38000,
+      existingEMI: 0,
+      cibilScore: -1, // NTC Thin-File
+      scoreCategory: 'NTC / Student Thin-File (CIBIL: -1)',
+      activeLoans: 0,
+      dpd: 0,
+      writeOffs: 0,
+      defaults: 0,
+      avgMonthlyBalance: 16000,
+      monthlyCredits: 38000,
+      upiMonthlyCredits: 48500,
+      utilityTrackRecord: '100% On-Time (BBPS Verified)',
+      employmentVintageYears: 2.0,
+      bounceCount: 0,
+      lastYearIncome: 420000,
+      currentYearIncome: 456000,
+      mutualFunds: 15000,
+      savings: 22000,
+      kycStatus: 'VERIFIED_NSDL_UIDAI'
+    });
+
+    console.log('Applicant Profiles seeded: APP001 (Rahul), APP002 (Priya), APP003 (Amit), APP201 (Sumit Kumar - Student NTC)');
 
     // Run BRE & Seed Initial Loan Applications
     const appsToSeed = [
       { profile: profile1, amount: 800000, tenure: 60, appId: 'LOAN1001' },
       { profile: profile2, amount: 1200000, tenure: 60, appId: 'LOAN1002' },
       { profile: profile3, amount: 500000, tenure: 36, appId: 'LOAN1003' },
+      { profile: profile4, amount: 45000, tenure: 12, appId: 'LOAN1004' },
     ];
 
     for (const item of appsToSeed) {
@@ -145,6 +174,8 @@ const seedData = async () => {
       const app = await LoanApplication.create({
         applicationId: item.appId,
         applicantId: item.profile.applicantId,
+        panNumber: item.profile.panNumber,
+        aadhaarNumber: item.profile.aadhaarNumber,
         requestedLoanAmount: item.amount,
         requestedTenureMonths: item.tenure,
         profileSnapshot: item.profile.toObject ? item.profile.toObject() : item.profile,
@@ -153,7 +184,22 @@ const seedData = async () => {
         derivedMetrics: breRes.derivedMetrics,
         scorecard: breRes.scorecard,
         evaluationResult: breRes.evaluationResult,
-        exceptionDetails: breRes.exceptionDetails
+        alternateData: breRes.alternateData,
+        exceptionDetails: breRes.exceptionDetails,
+        bureauSnapshot: {
+          panNumber: item.profile.panNumber,
+          cibilScore: item.profile.cibilScore,
+          scoreCategory: item.profile.scoreCategory,
+          kycStatus: item.profile.kycStatus,
+          writeOffs: item.profile.writeOffs,
+          bounceCount: item.profile.bounceCount,
+          mutualFunds: item.profile.mutualFunds,
+          savings: item.profile.savings,
+          upiMonthlyCredits: item.profile.upiMonthlyCredits,
+          utilityTrackRecord: item.profile.utilityTrackRecord,
+          employmentVintageYears: item.profile.employmentVintageYears,
+          bureauSource: 'CIBIL / Experian India Realtime Gateway'
+        }
       });
 
       await AuditLog.create({
@@ -170,7 +216,7 @@ const seedData = async () => {
       });
     }
 
-    console.log('Initial Loan Applications seeded: LOAN1001 (APPROVED), LOAN1002 (EXCEPTION_REQUIRED), LOAN1003 (REJECTED)');
+    console.log('Initial Loan Applications seeded: LOAN1001 (APPROVED), LOAN1002 (EXCEPTION_REQUIRED), LOAN1003 (REJECTED), LOAN1004 (APPROVED_NTC_CASHFLOW)');
 
     console.log('✅ Seeding complete! Database is fully populated.');
     process.exit(0);
