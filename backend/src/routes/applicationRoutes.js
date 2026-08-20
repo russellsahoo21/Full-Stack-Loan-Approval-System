@@ -24,8 +24,8 @@ router.get('/audit-logs/all', protect, authorize('POLICY_ADMIN', 'CREDIT_OFFICER
 // Protected application lookup by ID
 router.get('/:id', protect, getApplicationById);
 
-// Version evaluation comparison (Admin & Officers)
-router.get('/:id/evaluate-version/:targetVersion', protect, authorize('POLICY_ADMIN', 'CREDIT_OFFICER_L1', 'CREDIT_OFFICER_L2'), evaluateApplicationUnderVersion);
+// Version evaluation comparison (Admin, Officers & Applicants)
+router.get('/:id/evaluate-version/:targetVersion', protect, authorize('POLICY_ADMIN', 'CREDIT_OFFICER_L1', 'CREDIT_OFFICER_L2', 'APPLICANT'), evaluateApplicationUnderVersion);
 
 // Re-run under a version + save immutable audit record
 router.post('/:id/rerun/:targetVersion', protect, authorize('POLICY_ADMIN', 'CREDIT_OFFICER_L1', 'CREDIT_OFFICER_L2'), reRunAndSaveAudit);

@@ -147,8 +147,8 @@ const seedData = async () => {
       age: 32,
       employmentType: 'Salaried',
       declaredMonthlyIncome: 95000,
-      existingEMI: 18000,
-      cibilScore: 680,
+      existingEMI: 28000,
+      cibilScore: 720,
       activeLoans: 2,
       dpd: 0,
       writeOffs: 0,
@@ -188,7 +188,7 @@ const seedData = async () => {
     // Run BRE & Seed Initial Loan Applications
     const appsToSeed = [
       { profile: profile1, amount: 800000, tenure: 60, appId: 'LOAN1001' },
-      { profile: profile2, amount: 1000000, tenure: 60, appId: 'LOAN1002' },
+      { profile: profile2, amount: 1200000, tenure: 60, appId: 'LOAN1002' },
       { profile: profile3, amount: 500000, tenure: 36, appId: 'LOAN1003' },
     ];
 

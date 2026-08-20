@@ -7,7 +7,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 30000,
 });
 
 // Request interceptor to inject Authorization Bearer token
@@ -26,6 +26,10 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (error.response?.status === 401 && error.response?.data?.message?.includes('invalid')) {
+      localStorage.removeItem('bre_token');
+      localStorage.removeItem('bre_user');
+    }
     const message = error.response?.data?.message || error.message || 'An unexpected error occurred';
     console.error('API Error:', message, error);
     return Promise.reject(error);

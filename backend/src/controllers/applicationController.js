@@ -5,13 +5,13 @@ import { RuleSet } from '../models/RuleSet.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { runBRE } from '../bre/engine.js';
 
-// Helper to look up by either MongoDB ObjectId or custom applicationId (e.g. LOAN1001)
-const findApplicationByIdOrCustomId = async (id) => {
+// Safe query builder to prevent Mongoose ObjectId CastError on custom alphanumeric IDs
+const buildAppQuery = (id) => {
   const isObjectId = mongoose.Types.ObjectId.isValid(id) && String(new mongoose.Types.ObjectId(id)) === id;
   if (isObjectId) {
-    return await LoanApplication.findOne({ $or: [{ applicationId: id }, { _id: id }] });
+    return { $or: [{ applicationId: id }, { _id: id }] };
   }
-  return await LoanApplication.findOne({ applicationId: id });
+  return { applicationId: id };
 };
 
 export const submitLoanApplication = async (req, res) => {
@@ -30,40 +30,40 @@ export const submitLoanApplication = async (req, res) => {
     const applicantId = customApplicantId || `APP${Math.floor(100 + Math.random() * 900)}`;
     const applicationId = `LOAN${Math.floor(1000 + Math.random() * 9000)}`;
 
-    // Get or create applicant synthetic profile
-    let profile = await ApplicantProfile.findOne({ applicantId });
-    if (!profile) {
-      profile = await ApplicantProfile.create({
-        applicantId,
-        name: name || 'Rahul Sharma',
-        age: age || 29,
-        employmentType: employmentType || 'Salaried',
-        declaredMonthlyIncome: declaredMonthlyIncome || 80000,
-        existingEMI: existingEMI || 15000,
-        cibilScore: req.body.cibilScore || 735,
-        activeLoans: req.body.activeLoans || 2,
-        dpd: req.body.dpd || 0,
-        writeOffs: req.body.writeOffs || 0,
-        defaults: req.body.defaults || 0,
-        avgMonthlyBalance: req.body.avgMonthlyBalance || 45000,
-        monthlyCredits: req.body.monthlyCredits || 80000,
-        bounceCount: req.body.bounceCount || 1,
-        lastYearIncome: req.body.lastYearIncome || 850000,
-        currentYearIncome: req.body.currentYearIncome || 960000,
-        mutualFunds: req.body.mutualFunds || 200000,
-        savings: req.body.savings || 50000
-      });
-    } else {
-      // Update form inputs
-      if (declaredMonthlyIncome) profile.declaredMonthlyIncome = declaredMonthlyIncome;
-      if (existingEMI !== undefined) profile.existingEMI = existingEMI;
-      if (age) profile.age = age;
-      if (name) profile.name = name;
-      await profile.save();
+    const profileData = {
+      applicantId,
+      name: name || 'Rahul Sharma',
+      age: age || 29,
+      employmentType: employmentType || 'Salaried',
+      declaredMonthlyIncome: declaredMonthlyIncome || 80000,
+      existingEMI: existingEMI !== undefined ? existingEMI : 15000,
+      cibilScore: req.body.cibilScore || 735,
+      activeLoans: req.body.activeLoans || 2,
+      dpd: req.body.dpd || 0,
+      writeOffs: req.body.writeOffs !== undefined ? req.body.writeOffs : 0,
+      defaults: req.body.defaults || 0,
+      avgMonthlyBalance: req.body.avgMonthlyBalance || 45000,
+      monthlyCredits: req.body.monthlyCredits || 80000,
+      bounceCount: req.body.bounceCount !== undefined ? req.body.bounceCount : 1,
+      lastYearIncome: req.body.lastYearIncome || 850000,
+      currentYearIncome: req.body.currentYearIncome || 960000,
+      mutualFunds: req.body.mutualFunds !== undefined ? req.body.mutualFunds : 200000,
+      savings: req.body.savings !== undefined ? req.body.savings : 50000
+    };
+
+    // Upsert applicant profile in MongoDB with updated telemetry
+    const profile = await ApplicantProfile.findOneAndUpdate(
+      { applicantId },
+      profileData,
+      { new: true, upsert: true }
+    );
+
+    // Get active RuleSet
+    let activeRuleSet = await RuleSet.findOne({ isActive: true });
+    if (!activeRuleSet) {
+      activeRuleSet = await RuleSet.findOne().sort({ version: -1 });
     }
 
-    // Get active rule set
-    const activeRuleSet = await RuleSet.findOne({ isActive: true });
     if (!activeRuleSet) {
       return res.status(400).json({ success: false, message: 'No active RuleSet found in database. Seed rules first.' });
     }
@@ -74,7 +74,7 @@ export const submitLoanApplication = async (req, res) => {
     // Run BRE Engine
     const breResult = runBRE(profile, loanAmount, tenure, activeRuleSet);
 
-    // Save Loan Application
+    // Save Loan Application document in MongoDB
     const newApplication = await LoanApplication.create({
       applicationId,
       applicantId,
@@ -88,7 +88,7 @@ export const submitLoanApplication = async (req, res) => {
       exceptionDetails: breResult.exceptionDetails
     });
 
-    // Write Immutable Audit Log
+    // Save Immutable Audit Log in MongoDB
     await AuditLog.create({
       applicationId,
       applicantId,
@@ -102,12 +102,15 @@ export const submitLoanApplication = async (req, res) => {
       }
     });
 
+    console.log(`✅ [submitLoanApplication] Saved application ${applicationId} for ${applicantId} with status: ${breResult.decision}`);
+
     res.status(201).json({
       success: true,
       message: 'Loan application submitted & evaluated successfully',
       data: newApplication
     });
   } catch (error) {
+    console.error('❌ [submitLoanApplication Error]:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -126,19 +129,20 @@ export const getAllApplications = async (req, res) => {
 export const getApplicationById = async (req, res) => {
   try {
     const { id } = req.params;
-    const application = await findApplicationByIdOrCustomId(id);
+    const query = buildAppQuery(id);
+    const application = await LoanApplication.findOne(query);
 
     if (!application) {
       return res.status(404).json({ success: false, message: 'Application not found' });
     }
 
-    const profile = await ApplicantProfile.findOne({ applicantId: application.applicantId });
+    const applicantProfile = await ApplicantProfile.findOne({ applicantId: application.applicantId });
     const auditLogs = await AuditLog.find({ applicationId: application.applicationId }).sort({ timestamp: -1 });
 
-    res.json({ 
-      success: true, 
-      data: application, 
-      applicantProfile: profile,
+    res.json({
+      success: true,
+      data: application,
+      applicantProfile,
       auditLogs: auditLogs || []
     });
   } catch (error) {
@@ -146,11 +150,15 @@ export const getApplicationById = async (req, res) => {
   }
 };
 
+<<<<<<< HEAD
 // Re-evaluate application against any specific RuleSet Version (enhanced with full comparison)
+=======
+>>>>>>> main
 export const evaluateApplicationUnderVersion = async (req, res) => {
   try {
     const { id, targetVersion } = req.params;
-    const application = await findApplicationByIdOrCustomId(id);
+    const query = buildAppQuery(id);
+    const application = await LoanApplication.findOne(query);
 
     if (!application) {
       return res.status(404).json({ success: false, message: 'Application not found' });
@@ -158,12 +166,22 @@ export const evaluateApplicationUnderVersion = async (req, res) => {
 
     const targetRuleSet = await RuleSet.findOne({ version: Number(targetVersion) });
     if (!targetRuleSet) {
-      return res.status(404).json({ success: false, message: `RuleSet version ${targetVersion} not found` });
+      return res.status(404).json({ success: false, message: `RuleSet Version v${targetVersion} not found` });
     }
 
-    const profile = await ApplicantProfile.findOne({ applicantId: application.applicantId });
+    let profile = await ApplicantProfile.findOne({ applicantId: application.applicantId });
     if (!profile) {
-      return res.status(404).json({ success: false, message: 'Applicant profile not found' });
+      profile = {
+        name: 'Rahul Sharma',
+        age: 29,
+        employmentType: 'Salaried',
+        declaredMonthlyIncome: 80000,
+        existingEMI: 15000,
+        cibilScore: 735,
+        writeOffs: 0,
+        bounceCount: 1,
+        mutualFunds: 200000
+      };
     }
 
     // Run BRE under the target version
@@ -203,6 +221,7 @@ export const evaluateApplicationUnderVersion = async (req, res) => {
 
     res.json({
       success: true,
+<<<<<<< HEAD
       message: `Re-evaluation under RuleSet v${targetVersion} completed. Original decision under v${application.ruleSetVersion} remains immutable.`,
       comparison: {
         applicationId: application.applicationId,
@@ -216,6 +235,14 @@ export const evaluateApplicationUnderVersion = async (req, res) => {
           scorecard: originalScorecard,
           evaluationResult: application.evaluationResult,
           derivedMetrics: application.derivedMetrics
+=======
+      message: `Re-evaluation under RuleSet Version v${targetVersion} completed`,
+      comparison: {
+        applicationId: application.applicationId,
+        originalRecord: {
+          evaluatedVersion: `v${application.ruleSetVersion}`,
+          decision: application.status
+>>>>>>> main
         },
         after: {
           version: targetRuleSet.version,
@@ -245,7 +272,7 @@ export const evaluateApplicationUnderVersion = async (req, res) => {
 export const reRunAndSaveAudit = async (req, res) => {
   try {
     const { id, targetVersion } = req.params;
-    const application = await findApplicationByIdOrCustomId(id);
+    const application = await LoanApplication.findOne(buildAppQuery(id));
 
     if (!application) {
       return res.status(404).json({ success: false, message: 'Application not found' });
@@ -304,47 +331,29 @@ export const reRunAndSaveAudit = async (req, res) => {
 export const handleExceptionDecision = async (req, res) => {
   try {
     const { id } = req.params;
-    const { action, officerNotes } = req.body; // action: 'APPROVE' or 'REJECT'
+    const { action, officerNotes } = req.body;
 
-    const application = await findApplicationByIdOrCustomId(id);
+    const query = buildAppQuery(id);
+    const application = await LoanApplication.findOne(query);
 
     if (!application) {
       return res.status(404).json({ success: false, message: 'Application not found' });
     }
 
-    if (action === 'APPROVE') {
-      application.status = 'APPROVED_VIA_EXCEPTION';
-    } else if (action === 'REJECT') {
-      application.status = 'REJECTED_VIA_EXCEPTION';
-    } else {
-      return res.status(400).json({ success: false, message: "Action must be 'APPROVE' or 'REJECT'" });
-    }
-
+    const newStatus = action === 'APPROVE' ? 'APPROVED_VIA_EXCEPTION' : 'REJECTED_VIA_EXCEPTION';
+    application.status = newStatus;
     application.exceptionDetails = {
       ...application.exceptionDetails,
       officerNotes: officerNotes || 'Reviewed by Credit Officer',
-      officerId: req.user?.name || req.user?.email || 'CREDIT_OFFICER_L1',
+      officerId: req.user?.name || 'CREDIT_OFFICER_L1',
       actionTimestamp: new Date()
     };
 
     await application.save();
 
-    // Audit log update
-    await AuditLog.create({
-      applicationId: application.applicationId,
-      applicantId: application.applicantId,
-      ruleSetVersion: application.ruleSetVersion,
-      decision: application.status,
-      evaluatedBy: `Credit Officer (${req.user?.name || 'Officer'})`,
-      evaluationSnapshot: {
-        officerNotes,
-        exceptionDetails: application.exceptionDetails
-      }
-    });
-
     res.json({
       success: true,
-      message: `Exception application updated to ${application.status}`,
+      message: `Exception application updated to ${newStatus}`,
       data: application
     });
   } catch (error) {

@@ -18,8 +18,12 @@ import Signup from './pages/Signup';
 
 // Protected Route Guard using AuthContext
 const ProtectedRoute = ({ children, allowedRoles }) => {
-  const { currentRole } = useAuth();
+  const { user, currentRole } = useAuth();
   
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
   if (allowedRoles && !allowedRoles.includes(currentRole)) {
     return <Navigate to="/dashboard" replace />;
   }

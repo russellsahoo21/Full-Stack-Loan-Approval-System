@@ -10,12 +10,12 @@ import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Active rules can be read publicly (or by applicants)
+// Read rules and versions (all authenticated users can inspect versions)
 router.get('/active', getActiveRuleSet);
+router.get('/versions', protect, getAllRuleVersions);
+router.get('/version/:version', protect, getRuleSetByVersion);
 
-// Version management restricted to Policy Admin
-router.get('/versions', protect, authorize('POLICY_ADMIN'), getAllRuleVersions);
-router.get('/version/:version', protect, authorize('POLICY_ADMIN'), getRuleSetByVersion);
+// Version creation restricted to Policy Admin
 router.post('/new-version', protect, authorize('POLICY_ADMIN'), createNewRuleVersion);
 
 // Patch a single rule → create new version automatically

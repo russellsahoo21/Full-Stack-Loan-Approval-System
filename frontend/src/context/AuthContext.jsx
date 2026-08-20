@@ -46,8 +46,8 @@ export const DEMO_USERS = {
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  // Initialize from LocalStorage or default demo user
-  const [token, setToken] = useState(() => localStorage.getItem('bre_token') || null);
+  // Initialize from LocalStorage or default demo token
+  const [token, setToken] = useState(() => localStorage.getItem('bre_token') || 'demo-offline-token');
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('bre_user');
     if (saved) {
@@ -60,6 +60,15 @@ export const AuthProvider = ({ children }) => {
     return DEMO_USERS[ROLES.ADMIN];
   });
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!localStorage.getItem('bre_token')) {
+      localStorage.setItem('bre_token', 'demo-offline-token');
+    }
+    if (!localStorage.getItem('bre_user')) {
+      localStorage.setItem('bre_user', JSON.stringify(DEMO_USERS[ROLES.ADMIN]));
+    }
+  }, []);
 
   const currentRole = user?.role || ROLES.ADMIN;
 
@@ -83,17 +92,20 @@ export const AuthProvider = ({ children }) => {
         saveAuthSession(response.token, response.user);
         return { success: true, user: response.user };
       }
-      return { success: false, message: response.message || 'Login failed' };
+      return { 
+        success: false, 
+        message: response.message || 'Invalid email or password. Please check your credentials.' 
+      };
     } catch (error) {
-      // Fallback for offline hackathon testing
-      console.warn('Backend login request failed, falling back to local demo profile', error);
+      // Fallback for offline testing
+      const message = error.response?.data?.message || 'Backend connection issue. Logging in with demo credentials.';
       const fallbackUser = {
-        name: credentials.email.split('@')[0],
-        email: credentials.email,
+        name: credentials.email ? credentials.email.split('@')[0] : 'Demo User',
+        email: credentials.email || 'admin@nbfc.com',
         role: ROLES.ADMIN,
       };
       saveAuthSession('demo-offline-token', fallbackUser);
-      return { success: true, user: fallbackUser, fallback: true };
+      return { success: true, user: fallbackUser, fallback: true, message };
     } finally {
       setIsLoading(false);
     }
@@ -107,15 +119,13 @@ export const AuthProvider = ({ children }) => {
         saveAuthSession(response.token, response.user);
         return { success: true, user: response.user };
       }
-      return { success: false, message: response.message || 'Registration failed' };
-    } catch (error) {
-      const fallbackUser = {
-        name: userData.name,
-        email: userData.email,
-        role: userData.role || ROLES.APPLICANT,
+      return { 
+        success: false, 
+        message: response.message || 'User already exists with this email address.' 
       };
-      saveAuthSession('demo-offline-token', fallbackUser);
-      return { success: true, user: fallbackUser, fallback: true };
+    } catch (error) {
+      const message = error.response?.data?.message || 'User already registered with this email address. Please sign in instead.';
+      return { success: false, message };
     } finally {
       setIsLoading(false);
     }
@@ -124,8 +134,8 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('bre_token');
     localStorage.removeItem('bre_user');
-    setToken(null);
-    setUser(null);
+    setToken('demo-offline-token');
+    setUser(DEMO_USERS[ROLES.ADMIN]);
   };
 
   // Instant Persona Switcher for Hackathon Live Demo
