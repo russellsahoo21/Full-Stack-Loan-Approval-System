@@ -90,31 +90,39 @@ Provide a concise, professional markdown response with structured bullet points,
   }
 
   // Underwriter / Credit Officer Persona Mode
-  if (query.includes('memo') || query.includes('appraisal') || query.includes('dossier')) {
+  if (query.includes('memo') || query.includes('appraisal') || query.includes('dossier') || query.includes('draft')) {
     return {
-      reply: `### 📑 Automated Regulatory Credit Appraisal Memo
-**Subject**: Exception Clearance Recommendation for Near-Prime Asset-Rich Cohort
-**Risk Profile**: CIBIL 720 | FOIR 52.4% | Liquid Buffer ₹6.5 Lakhs
-**Executive Finding**: Although applicant's FOIR exceeds standard 50% ceiling, verified liquid mutual fund reserves provide 6.2x monthly debt service coverage.
+      reply: `### 📑 Automated Regulatory Credit Appraisal Memo (CAM)
+**Subject**: Policy Exception Clearance for Near-Prime Asset-Rich Applicant
+**Risk Telemetry**: CIBIL 720 | FOIR 52.4% | Liquid Buffer ₹6.5 Lakhs (MF + FDs)
+
+**Executive Findings**:
+1. **Core Deviation**: Proposed debt service ratio of 52.4% exceeds standard institutional ceiling of 50.0%.
+2. **Mitigating Compensating Factors**: Verified liquid mutual fund reserves of ₹6.5L provide **6.2x monthly debt service coverage**. Zero 30+ DPD delinquency instances across 36-month vintage.
+3. **Regulatory Compliance**: Meets RBI Prudential Framework criteria for verified cashflow underwriting.
+
 **Audit Recommendation**: **APPROVE WITH CONDITION** (Mandatory auto-debit NACH mandate setup on primary salary account).`,
       suggestions: ['Export Credit Memo to PDF', 'View Bureau Snapshot', 'Check Default Probability'],
       cardType: 'CREDIT_MEMO',
       cardData: {
         memoId: 'CAM-2026-8841',
-        riskGrade: 'Grade B (Acceptable)',
+        riskGrade: 'Grade B+ (Low-Risk Deviation)',
         recommendedLimit: 1200000,
         mitigationFactor: '6.2x Debt Service Reserve Buffer'
       }
     };
   }
 
-  if (query.includes('concentration') || query.includes('portfolio') || query.includes('risk')) {
+  if (query.includes('concentration') || query.includes('portfolio') || query.includes('risk') || query.includes('cibil 680-720') || query.includes('near-prime')) {
     return {
-      reply: `### 📊 Portfolio Risk & Segment Exposure Analysis
-- **Total Active Portfolio**: ₹4.82 Crores across 50 applications.
-- **Near-Prime Asset-Rich Segment (E-01)**: 62% of pending exceptions. Historical default rate is only **2.9%** (Safe for batch fast-track).
-- **High Leverage Sector**: IT & Self-Employed services represent 28% of exception queue.
-- **Recommended Action**: Fast-track Group A candidates in E-01 to clear 80% of backlog while focusing manual investigation on Group C thin-buffer files.`,
+      reply: `### 📊 Portfolio Risk & Segment Concentration Analysis
+- **Total Active Portfolio**: ₹4.82 Crores across live application queue.
+- **Near-Prime Cohort (CIBIL 680–720)**: Represents **38.4%** of total pipeline exposure (₹1.85 Cr).
+- **Archetype Breakdown**:
+  - **Asset-Rich Segment (E-01)**: 62% of pending exceptions. Historical default rate is only **2.9%** (Safe for batch fast-track).
+  - **High Growth Professionals (E-02)**: 24% of exceptions with YoY salary increase $>15\%$.
+  - **Thin Buffer Group (E-04)**: 14% of exceptions requiring manual L2 escalation.
+- **Underwriting Action**: Fast-track Group A candidates in E-01 to clear 75% of exception backlog immediately.`,
       suggestions: ['Execute Fast-Track Group A', 'Run Macro Stress Test', 'Inspect High-Exposure Cases'],
       cardType: 'PORTFOLIO_CONCENTRATION',
       cardData: {
@@ -125,9 +133,48 @@ Provide a concise, professional markdown response with structured bullet points,
     };
   }
 
+  if (query.includes('mitigat') || query.includes('52%') || query.includes('borderline') || query.includes('condition')) {
+    return {
+      reply: `### 🛡️ Recommended Mitigating Conditions for Borderline 52% FOIR Case
+When an applicant's FOIR is between 50% and 55%, the following institutional policy relaxations apply:
+1. **Liquid Asset Collateral**: If verified Mutual Funds / Savings $\ge 40\%$ of loan principal $\rightarrow$ Eligible for **L1 Standard Fast-Track Override**.
+2. **Tenure Extension**: Extending requested tenure by +12 to +24 months compresses monthly FOIR down to **43.8%** (Instant STP Approval).
+3. **Co-Applicant Income Ingestion**: Ingesting secondary earner's bank statement increases eligible debt ceiling by up to 45%.
+4. **Mandatory NACH & Insurance**: Enforce auto-debit on salary account + Credit Shield insurance.`,
+      suggestions: ['Apply 60M Restructuring', 'Request Co-Applicant Addition', 'Fast-Track Under L1 Policy']
+    };
+  }
+
+  if (query.includes('reject') || query.includes('reason') || query.includes('top reason') || query.includes('decline')) {
+    return {
+      reply: `### 📉 Top Institutional Rejection Drivers (This Week)
+1. **Severe Bureau Delinquency (42%)**: Unresolved 60+ DPD or commercial write-offs in the last 12 months.
+2. **Excessive Leverage (28%)**: Calculated FOIR $> 65\%$ with no liquid buffer or asset backing.
+3. **Bureau Score Below Hard Floor (18%)**: CIBIL $< 650$ on unsecured personal credit products.
+4. **Salary Floor Non-Compliance (12%)**: Verified monthly income $< ₹25,000$ institutional minimum.`,
+      suggestions: ['Review Rule Cutoff Thresholds', 'Simulate Score Adjustments', 'Inspect Audit Trail']
+    };
+  }
+
+  if (query.includes('exception') || query.includes('l1') || query.includes('l2') || query.includes('queue')) {
+    return {
+      reply: `### 🏛️ Smart Exception Routing & Delegation Matrix
+- **L1 Standard Review Queue**: Assigned to cases with loan amounts $\le ₹15\text{ Lakhs}$, near-prime CIBIL ($680–749$), and minor FOIR deviations ($50–58\%$) backed by liquid assets.
+- **L2 Senior Escalation Queue**: Mandated for loan amounts $> ₹15\text{ Lakhs}$, high leverage (FOIR $> 58\%$), thin liquid buffers, or cases manually escalated by L1 officers.
+- **Batch Processing**: Exception Intelligence Studio clusters identical risk vectors into Archetypes E-01 through E-05 for 1-click batch decisioning.`,
+      suggestions: ['Open Exception Queue', 'Open Exception Intelligence Studio', 'View Archetype Matrix']
+    };
+  }
+
   return {
-    reply: `Hello Credit Officer! I am your **AI Underwriting Assistant**. I can help you synthesize portfolio concentration, generate RBI-compliant credit appraisal memos, calculate risk-adjusted pricing, or detect anomalies across applications.`,
-    suggestions: ['Analyze Portfolio Risk Concentration', 'Draft Credit Appraisal Memo', 'Explain Top Rejection Drivers This Week', 'Simulate Macro Stress Scenario']
+    reply: `### 🤖 AI Underwriting Copilot Ready
+I can assist you with real-time credit analysis and decision synthesis:
+- **Drafting Credit Appraisal Memos (CAM)**: State *"Draft credit memo for near-prime cohort"*.
+- **Portfolio Concentration**: Ask *"Analyze portfolio risk concentration across CIBIL 680-720"*.
+- **Mitigation Strategies**: Ask *"Suggest mitigating conditions for borderline 52% FOIR case"*.
+- **Rejection Diagnostics**: Ask *"Summarize top reasons for rejection this week"*.
+- **Macro Sensitivity**: Ask *"Simulate impact of 100 bps RBI rate hike"*.`,
+    suggestions: ['Analyze Portfolio Risk Concentration', 'Draft Credit Appraisal Memo', 'Suggest Mitigating Conditions for 52% FOIR', 'Summarize Top Rejection Reasons']
   };
 };
 
