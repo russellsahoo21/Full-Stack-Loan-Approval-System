@@ -337,10 +337,16 @@ const AiPricingOptimizerPage = () => {
                           f.isRecommended ? 'bg-emerald-500/10 font-bold text-emerald-300' : 'text-gray-300'
                         }`}
                       >
-                        <td className="py-3 font-mono text-white">{f.rate}%</td>
-                        <td className="py-3 font-mono">{f.expectedConversion}</td>
-                        <td className="py-3 font-mono text-orange-400">{f.defaultProbability}</td>
-                        <td className="py-3 font-mono text-emerald-400">₹{f.marginLakhs}L</td>
+                        <td className={`py-3 font-mono font-bold ${Number(f.rate) > 13.5 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                          {Number(f.rate) > 13.5 ? '▲ ' : '▼ '}{f.rate}%
+                        </td>
+                        <td className="py-3 font-mono text-gray-200">{f.expectedConversion}</td>
+                        <td className={`py-3 font-mono font-bold ${
+                          parseFloat(f.defaultProbability) > 3.0 ? 'text-rose-400' : 'text-emerald-400'
+                        }`}>
+                          {f.defaultProbability}
+                        </td>
+                        <td className="py-3 font-mono text-emerald-400 font-bold">₹{f.marginLakhs}L</td>
                         <td className="py-3">
                           {f.isRecommended ? (
                             <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 font-extrabold border border-emerald-500/40">

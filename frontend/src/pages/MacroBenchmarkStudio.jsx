@@ -356,7 +356,11 @@ const MacroBenchmarkStudio = () => {
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs">{p.name}</span>
-                    <span className="font-mono font-extrabold text-xs">{p.repoRate.toFixed(2)}%</span>
+                    <span className={`font-mono font-extrabold text-xs ${
+                      p.repoRate > 6.50 ? 'text-rose-400' : p.repoRate < 6.50 ? 'text-emerald-400' : 'text-amber-400'
+                    }`}>
+                      {p.repoRate > 6.50 ? `▲ ${p.repoRate.toFixed(2)}%` : p.repoRate < 6.50 ? `▼ ${p.repoRate.toFixed(2)}%` : `${p.repoRate.toFixed(2)}%`}
+                    </span>
                   </div>
                   <p className={`text-[11px] leading-snug ${repoRate === p.repoRate ? 'text-gray-800' : 'text-gray-400'}`}>
                     {p.desc}
@@ -376,7 +380,7 @@ const MacroBenchmarkStudio = () => {
                 </h2>
               </div>
               <span className="text-[10px] font-mono text-gray-400">
-                Formula: Repo ({repoRate.toFixed(2)}%) + Spread
+                Formula: Repo (<span className={repoRate > 6.50 ? 'text-rose-400 font-bold' : repoRate < 6.50 ? 'text-emerald-400 font-bold' : 'text-emerald-400 font-bold'}>{repoRate.toFixed(2)}%</span>) + Spread
               </span>
             </div>
 
@@ -389,6 +393,9 @@ const MacroBenchmarkStudio = () => {
                 { key: 'EDUCATION', name: 'Education Loan', spread: 4.00, tag: 'Priority Sector' },
               ].map((fac) => {
                 const calculatedRate = computeFacilityRate(fac.key);
+                const baselineRate = 6.50 + fac.spread;
+                const isIncreased = calculatedRate > baselineRate;
+                const isDecreased = calculatedRate < baselineRate;
                 return (
                   <div key={fac.key} className="py-3 flex items-center justify-between">
                     <div>
@@ -397,13 +404,15 @@ const MacroBenchmarkStudio = () => {
                         <span className="text-[10px] text-gray-500 font-mono">{fac.tag}</span>
                       </div>
                       <span className="text-[10px] text-gray-400 font-mono">
-                        Base Spread: +{fac.spread.toFixed(2)}% over Repo
+                        Base Spread: <span className="text-amber-400 font-bold">+{fac.spread.toFixed(2)}%</span> over Repo
                       </span>
                     </div>
 
                     <div className="text-right">
-                      <span className="font-extrabold text-white font-mono text-sm block">
-                        {calculatedRate.toFixed(2)}% p.a.
+                      <span className={`font-extrabold font-mono text-sm block ${
+                        isIncreased ? 'text-rose-400' : isDecreased ? 'text-emerald-400' : 'text-emerald-400'
+                      }`}>
+                        {isIncreased ? '▲ ' : isDecreased ? '▼ ' : ''}{calculatedRate.toFixed(2)}% p.a.
                       </span>
                       <span className="text-[9px] text-gray-500 uppercase font-mono">Dynamic Floating APR</span>
                     </div>

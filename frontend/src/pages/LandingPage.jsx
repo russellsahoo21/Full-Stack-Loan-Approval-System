@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import logoImg from "../assets/logo.png";
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -225,9 +226,12 @@ export default function LandingPage() {
 
       <div className="nav-wrap">
         <nav className="navbar">
-          <div className="logo cursor-pointer" onClick={() => window.scrollTo(0, 0)}>
-            <div className="logo-box">NB</div>
-            <span>NBFC Smart Underwriting</span>
+          <div className="cursor-pointer" style={{ display: 'flex', alignItems: 'center', gap: '12px' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            <img src={logoImg} alt="Smart Underwriting Logo" style={{ width: '42px', height: '42px', objectFit: 'contain', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.2)', background: '#000', padding: '2px' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+              <span style={{ fontWeight: 800, fontSize: '17px', letterSpacing: '-0.5px', color: '#fff', lineHeight: 1.1 }}>Smart Underwriting</span>
+              <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#fbbf24', letterSpacing: '1px', textTransform: 'uppercase', marginTop: '2px' }}>BRE Platform</span>
+            </div>
           </div>
           <div className="nav-links">
             <a href="#engine">BRE Engine</a>
@@ -452,9 +456,12 @@ export default function LandingPage() {
         </button>
       </section>
 
-      <footer>
-        <span>© 2026 NBFC Smart Underwriting Platform</span>
-        <span>Enterprise Credit Solutions</span>
+      <footer style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '15px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <img src={logoImg} alt="Smart Underwriting Logo" style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: '#000' }} />
+          <span style={{ fontWeight: 700, fontSize: '14px', color: '#fff' }}>Smart Underwriting</span>
+        </div>
+        <span style={{ fontSize: '12px', color: '#666' }}>© 2026 Smart Underwriting Platform. Enterprise Credit Infrastructure.</span>
       </footer>
 
       {/* INLINE STYLES */}

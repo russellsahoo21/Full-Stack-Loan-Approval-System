@@ -107,31 +107,31 @@ const AiCopilotPage = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto pb-12 animate-in fade-in duration-500 space-y-6">
+    <div className="max-w-6xl mx-auto h-[calc(100vh-150px)] flex flex-col space-y-3 animate-in fade-in duration-500 overflow-hidden">
       
       {/* Header & Persona Selector */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#222] pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#222] pb-3 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
-            <Bot className="w-5 h-5 animate-pulse" />
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/20 shrink-0">
+            <Bot className="w-4 h-4 animate-pulse" />
           </div>
           <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl font-bold text-white tracking-tight">
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-white tracking-tight">
                 AI Underwriting Copilot & Advisor
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-purple-500/10 text-purple-300 border border-purple-500/30 font-bold">
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-mono bg-purple-500/10 text-purple-300 border border-purple-500/30 font-bold">
                 GPT-4o Underwriting Fine-Tuned
               </span>
             </div>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-[11px] text-gray-400">
               Real-time conversational underwriting guidance, credit health roadmaps & appraisal synthesis.
             </p>
           </div>
         </div>
 
         {/* Persona Mode Switcher */}
-        <div className="flex items-center bg-[#161616] p-1 rounded-xl border border-[#333]">
+        <div className="flex items-center bg-[#161616] p-1 rounded-xl border border-[#333] shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -143,7 +143,7 @@ const AiCopilotPage = () => {
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               }]);
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
               copilotPersona === 'BORROWER' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-400 hover:text-white'
             }`}
           >
@@ -162,7 +162,7 @@ const AiCopilotPage = () => {
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               }]);
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
               copilotPersona === 'OFFICER' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-400 hover:text-white'
             }`}
           >
@@ -173,10 +173,10 @@ const AiCopilotPage = () => {
       </div>
 
       {/* Main Chat Workbench */}
-      <div className="bg-[#111] border border-[#2a2a2a] rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[640px]">
+      <div className="bg-[#111] border border-[#2a2a2a] rounded-2xl overflow-hidden shadow-2xl flex flex-col flex-1 min-h-0">
         
         {/* Messages Stream */}
-        <div className="flex-1 p-5 overflow-y-auto space-y-4 bg-gradient-to-b from-[#111] to-[#0e0e0e]">
+        <div className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-gradient-to-b from-[#111] to-[#0e0e0e] min-h-0">
           {messages.map((m) => (
             <div
               key={m.id}

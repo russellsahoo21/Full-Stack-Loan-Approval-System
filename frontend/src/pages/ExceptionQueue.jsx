@@ -237,13 +237,14 @@ const ExceptionQueue = () => {
                         <td className="px-6 py-4 font-mono text-gray-400">
                           v{app.ruleSetVersion || 1}
                         </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2.5 py-1 text-[10px] uppercase font-bold rounded-full ${
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-[11px] uppercase font-bold rounded-full whitespace-nowrap ${
                             isL2Case 
                               ? 'bg-orange-500/10 text-orange-400 border border-orange-500/30' 
                               : 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
                           }`}>
-                            {isL2Case ? '⚡ L2 Senior Escalation' : '🛡️ L1 Standard Review'}
+                            <span>{isL2Case ? '⚡' : '🛡️'}</span>
+                            <span>{isL2Case ? 'L2 Senior Escalation' : 'L1 Standard Review'}</span>
                           </span>
                         </td>
                         <td className="px-6 py-4">

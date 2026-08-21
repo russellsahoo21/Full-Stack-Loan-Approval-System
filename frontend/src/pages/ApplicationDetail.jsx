@@ -415,7 +415,12 @@ const ApplicationDetail = () => {
             <div>
               <p className="text-xs text-gray-400 mb-1">Interest Rate</p>
               <div className="flex items-center gap-1">
-                <p className="text-xl font-bold text-white">
+                <p className={`text-xl font-bold font-mono ${
+                  Number(application.evaluationResult?.interestRatePercent || 12) > 12 
+                    ? 'text-rose-400' 
+                    : 'text-emerald-400'
+                }`}>
+                  {Number(application.evaluationResult?.interestRatePercent || 12) > 12 ? '▲ ' : '▼ '}
                   {application.evaluationResult?.interestRatePercent ?? 'N/A'}%
                 </p>
               </div>
@@ -424,7 +429,7 @@ const ApplicationDetail = () => {
 
             <div>
               <p className="text-xs text-gray-400 mb-1">Proposed EMI</p>
-              <p className="text-xl font-bold text-white">
+              <p className="text-xl font-bold text-white font-mono">
                 {formatCurrency(application.derivedMetrics?.proposedEMI || 0)}
               </p>
               <p className="text-[10px] text-gray-500 mt-0.5">{application.requestedTenureMonths} mo tenure</p>
@@ -432,10 +437,15 @@ const ApplicationDetail = () => {
           </div>
 
           {/* Derived Metrics Footer */}
-          <div className="bg-[#141414] px-6 py-3 border-t border-[#222] grid grid-cols-3 gap-4 text-xs">
+          <div className="bg-[#141414] px-6 py-3 border-t border-[#222] grid grid-cols-3 gap-4 text-xs font-mono">
             <div>
               <span className="text-gray-500">Calculated FOIR: </span>
-              <span className="text-white font-bold">{application.derivedMetrics?.foir || 0}%</span>
+              <span className={`font-bold ${
+                Number(application.derivedMetrics?.foir || 0) <= 50 ? 'text-emerald-400' : 'text-rose-400'
+              }`}>
+                {Number(application.derivedMetrics?.foir || 0) <= 50 ? '▼ ' : '▲ '}
+                {application.derivedMetrics?.foir || 0}%
+              </span>
             </div>
             <div>
               <span className="text-gray-500">Loan-to-Income: </span>
@@ -443,8 +453,10 @@ const ApplicationDetail = () => {
             </div>
             <div>
               <span className="text-gray-500">Income Trend: </span>
-              <span className="text-white font-bold">
-                {application.derivedMetrics?.incomeTrendPercent > 0 ? '+' : ''}
+              <span className={`font-bold ${
+                (application.derivedMetrics?.incomeTrendPercent || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'
+              }`}>
+                {(application.derivedMetrics?.incomeTrendPercent || 0) > 0 ? '+' : ''}
                 {application.derivedMetrics?.incomeTrendPercent || 0}%
               </span>
             </div>

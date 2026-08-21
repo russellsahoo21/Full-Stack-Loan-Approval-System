@@ -190,14 +190,20 @@ const ApplicationsList = () => {
                     <td className="px-6 py-4 text-gray-300">
                       <span className="font-semibold text-white">{app.applicantId}</span>
                     </td>
-                    <td className="px-6 py-4 font-bold text-white">
+                    <td className="px-6 py-4 font-bold text-white font-mono">
                       {formatCurrency(app.requestedLoanAmount)}
                     </td>
-                    <td className="px-6 py-4 text-gray-400 font-medium">
-                      {app.requestedTenureMonths} Months
+                    <td className="px-6 py-4 text-gray-300 font-medium font-mono">
+                      {app.requestedTenureMonths} Mo
                     </td>
-                    <td className="px-6 py-4 font-mono font-semibold text-gray-300">
-                      {app.derivedMetrics?.foir || '-'}%
+                    <td className="px-6 py-4 font-mono font-bold">
+                      {app.derivedMetrics?.foir ? (
+                        <span className={Number(app.derivedMetrics.foir) <= 50 ? 'text-emerald-400' : 'text-rose-400'}>
+                          {Number(app.derivedMetrics.foir) <= 50 ? '▼ ' : '▲ '}{app.derivedMetrics.foir}%
+                        </span>
+                      ) : (
+                        <span className="text-gray-500">-</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       {formatStatusBadge(app.status)}

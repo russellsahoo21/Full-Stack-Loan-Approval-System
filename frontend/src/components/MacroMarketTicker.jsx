@@ -40,27 +40,42 @@ const MacroMarketTicker = () => {
 
         <div className="flex items-center gap-1 text-gray-300">
           <span className="text-gray-500 uppercase font-semibold">RBI Repo Rate:</span>
-          <span className="font-bold font-mono text-white">{repo.toFixed(2)}%</span>
+          <span className={`font-bold font-mono ${repo > 6.50 ? 'text-rose-400' : repo < 6.50 ? 'text-emerald-400' : 'text-emerald-400'}`}>
+            {repo.toFixed(2)}%
+          </span>
+          {repo !== 6.50 && (
+            <span className={`text-[9px] font-mono font-bold px-1 rounded ${repo > 6.50 ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
+              {repo > 6.50 ? `+${((repo - 6.50) * 100).toFixed(0)} bps` : `${((repo - 6.50) * 100).toFixed(0)} bps`}
+            </span>
+          )}
         </div>
 
         <div className="hidden sm:flex items-center gap-1 text-gray-300">
           <span className="text-gray-500 uppercase font-semibold">10Y G-Sec:</span>
-          <span className="font-bold font-mono text-white">{gsec.toFixed(2)}%</span>
+          <span className={`font-bold font-mono ${gsec >= 7.00 ? 'text-rose-400' : 'text-emerald-400'}`}>
+            {gsec.toFixed(2)}%
+          </span>
         </div>
 
         <div className="hidden md:flex items-center gap-1 text-gray-300">
           <span className="text-gray-500 uppercase font-semibold">1Y MCLR:</span>
-          <span className="font-bold font-mono text-white">{mclr.toFixed(2)}%</span>
+          <span className={`font-bold font-mono ${mclr > 8.85 ? 'text-rose-400' : 'text-emerald-400'}`}>
+            {mclr.toFixed(2)}%
+          </span>
         </div>
 
         <div className="hidden lg:flex items-center gap-1 text-gray-300">
           <span className="text-gray-500 uppercase font-semibold">CPI Inflation:</span>
-          <span className="font-bold font-mono text-white">{inflation.toFixed(2)}%</span>
+          <span className={`font-bold font-mono ${inflation >= 5.10 ? 'text-rose-400' : 'text-emerald-400'}`}>
+            {inflation.toFixed(2)}%
+          </span>
         </div>
 
         <div className="hidden xl:flex items-center gap-1 text-gray-300">
-          <span className="text-gray-500 uppercase font-semibold">Unsecured Risk Weight:</span>
-          <span className="font-bold font-mono text-white">{riskWeight}%</span>
+          <span className="text-gray-500 uppercase font-semibold">Risk Weight:</span>
+          <span className={`font-bold font-mono ${riskWeight > 125 ? 'text-rose-400' : 'text-emerald-400'}`}>
+            {riskWeight}%
+          </span>
         </div>
       </div>
 

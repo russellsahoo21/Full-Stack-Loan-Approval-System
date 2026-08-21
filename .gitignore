@@ -1,2 +1,9 @@
-
+node_modules/
+.env
+*.env
+.env.local
+.env.*.local
 frontend.zip
+.agents.zip
+dist/
+.DS_Store

@@ -232,13 +232,17 @@ const AiStressTestingPage = () => {
                 </span>
               </div>
 
-              <div className="bg-[#111] border border-blue-500/30 p-4 rounded-xl shadow-lg bg-blue-500/5">
+              <div className="bg-[#111] border border-white/10 p-4 rounded-xl shadow-lg">
                 <span className="text-[10px] uppercase tracking-wider text-gray-400 block font-semibold">Capital Ratio (CAR)</span>
-                <div className="text-2xl font-extrabold text-blue-400 mt-1 font-mono">
-                  {sm.projectedCAR}%
+                <div className={`text-2xl font-extrabold mt-1 font-mono ${
+                  Number(sm.projectedCAR) >= 15.0 ? 'text-emerald-400' : 'text-rose-400'
+                }`}>
+                  {Number(sm.projectedCAR) >= 15.0 ? '▲ ' : '▼ '}{sm.projectedCAR}%
                 </div>
-                <span className="text-[10px] text-blue-300 mt-0.5 block font-mono">
-                  RBI Floor: 15.0%
+                <span className={`text-[10px] mt-0.5 block font-mono ${
+                  Number(sm.projectedCAR) >= 15.0 ? 'text-emerald-400' : 'text-rose-400'
+                }`}>
+                  RBI Floor: 15.0% {Number(sm.projectedCAR) < 15.0 ? '(Breached)' : '(Safe)'}
                 </span>
               </div>
 
