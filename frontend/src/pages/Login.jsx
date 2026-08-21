@@ -2,12 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, ROLES, DEMO_USERS } from '../context/AuthContext';
 import { ShieldCheck, ChevronRight, AlertCircle, Sparkles, UserCheck } from 'lucide-react';
-import { BrandLogo } from '../components/BrandLogo';
 
 export default function Login() {
   const navigate = useNavigate();
   const { login, switchRole } = useAuth();
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -41,8 +40,8 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-[#050505] text-white flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background grid */}
-      <div 
-        className="absolute inset-0 z-0 opacity-15 pointer-events-none" 
+      <div
+        className="absolute inset-0 z-0 opacity-15 pointer-events-none"
         style={{
           backgroundImage: `linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)`,
           backgroundSize: '70px 70px',
@@ -50,15 +49,16 @@ export default function Login() {
           WebkitMaskImage: 'linear-gradient(to bottom, black, transparent 90%)'
         }}
       />
-      
+
       <div className="absolute w-[500px] h-[500px] bg-white/5 rounded-full blur-[100px] -top-[200px] -right-[100px] z-0 pointer-events-none" />
-      
+
       <div className="w-full max-w-lg relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
         <div className="text-center mb-6">
-          <div className="flex justify-center mb-3">
-            <BrandLogo size="lg" variant="full" />
+          <div className="mx-auto w-12 h-12 border border-white/20 bg-[#0a0a0a] rounded-xl flex items-center justify-center mb-3 shadow-[0_0_20px_rgba(255,255,255,0.05)]">
+            <ShieldCheck className="w-6 h-6 text-white" />
           </div>
-          <p className="text-gray-400 text-xs">Sign in to access the Business Rules & Credit Engine</p>
+          <h1 className="text-2xl font-bold tracking-tight text-white">Smart Underwriting Platform</h1>
+          <p className="text-gray-400 mt-1 text-sm">Sign in to access the Business Rules & Credit Engine</p>
         </div>
 
         {/* Quick Demo Personas Panel */}
@@ -114,8 +114,8 @@ export default function Login() {
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Email Address</label>
-              <input 
-                type="email" 
+              <input
+                type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -123,14 +123,14 @@ export default function Login() {
                 placeholder="admin@nbfc.com"
               />
             </div>
-            
+
             <div>
               <div className="flex justify-between mb-1.5">
                 <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Password</label>
                 <span className="text-xs text-gray-500">Default: admin123</span>
               </div>
-              <input 
-                type="password" 
+              <input
+                type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -140,8 +140,8 @@ export default function Login() {
             </div>
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={isSubmitting}
             className="w-full mt-6 bg-white text-black font-semibold rounded-lg px-4 py-2.5 flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.1)] disabled:opacity-50"
           >

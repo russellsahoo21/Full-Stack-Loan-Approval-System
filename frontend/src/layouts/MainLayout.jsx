@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  FileText, List, Settings, ShieldAlert, LayoutDashboard, 
-  ChevronDown, User, LogOut, Menu, Sparkles, History, 
-  Database, Layers, Check, BrainCircuit, Bot, Activity, 
+import {
+  FileText, List, Settings, ShieldAlert, LayoutDashboard,
+  ChevronDown, User, LogOut, Menu, Sparkles, History,
+  Database, Layers, Check, BrainCircuit, Bot, Activity,
   ShieldCheck, Percent, Zap, Landmark
 } from 'lucide-react';
 import MacroMarketTicker from '../components/MacroMarketTicker';
-import { BrandLogo } from '../components/BrandLogo';
 import { useAuth, ROLES, ROLE_LABELS } from '../context/AuthContext';
 import clsx from 'clsx';
 
@@ -21,35 +20,35 @@ const MainLayout = () => {
     {
       title: 'Core Underwriting',
       links: [
-        { 
-          name: 'Dashboard', 
-          path: '/dashboard', 
-          icon: LayoutDashboard, 
-          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
+        {
+          name: 'Dashboard',
+          path: '/dashboard',
+          icon: LayoutDashboard,
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2]
         },
-        { 
-          name: currentRole === ROLES.APPLICANT ? 'My Applications' : 'All Applications', 
-          path: '/applications', 
-          icon: Layers, 
-          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT] 
+        {
+          name: currentRole === ROLES.APPLICANT ? 'My Applications' : 'All Applications',
+          path: '/applications',
+          icon: Layers,
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT]
         },
-        { 
-          name: currentRole === ROLES.APPLICANT ? 'Apply for Loan' : 'New Application', 
-          path: '/applications/new', 
-          icon: FileText, 
-          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT] 
+        {
+          name: currentRole === ROLES.APPLICANT ? 'Apply for Loan' : 'New Application',
+          path: '/applications/new',
+          icon: FileText,
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT]
         },
-        { 
-          name: 'Exception Intelligence', 
-          path: '/exception-intelligence', 
-          icon: BrainCircuit, 
-          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
+        {
+          name: 'Exception Intelligence',
+          path: '/exception-intelligence',
+          icon: BrainCircuit,
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2]
         },
-        { 
-          name: 'Exception Queue', 
-          path: '/exceptions', 
-          icon: List, 
-          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
+        {
+          name: 'Exception Queue',
+          path: '/exceptions',
+          icon: List,
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2]
         },
       ]
     },
@@ -57,52 +56,52 @@ const MainLayout = () => {
       title: 'AI Intelligence Suite',
       badge: 'AI Powered',
       links: [
-        { 
-          name: 'AI Underwrite Copilot', 
-          path: '/ai-copilot', 
-          icon: Bot, 
-          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT] 
+        {
+          name: 'AI Underwrite Copilot',
+          path: '/ai-copilot',
+          icon: Bot,
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT]
         },
-        { 
-          name: 'Macro Stress Lab', 
-          path: '/ai-stress-testing', 
-          icon: Activity, 
-          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
+        {
+          name: 'Macro Stress Lab',
+          path: '/ai-stress-testing',
+          icon: Activity,
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2]
         },
-        { 
-          name: 'Dynamic Pricing AI', 
-          path: '/ai-pricing-optimizer', 
-          icon: Percent, 
-          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
+        {
+          name: 'Dynamic Pricing AI',
+          path: '/ai-pricing-optimizer',
+          icon: Percent,
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2]
         },
       ]
     },
     {
       title: 'Governance & Admin',
       links: [
-        { 
-          name: 'BRE Studio', 
-          path: '/admin/rules', 
-          icon: Settings, 
-          roles: [ROLES.ADMIN] 
+        {
+          name: 'BRE Studio',
+          path: '/admin/rules',
+          icon: Settings,
+          roles: [ROLES.ADMIN]
         },
-        { 
-          name: 'Macro Benchmarks & Repo', 
-          path: '/macro-benchmarks', 
-          icon: Landmark, 
-          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT] 
+        {
+          name: 'Macro Benchmarks & Repo',
+          path: '/macro-benchmarks',
+          icon: Landmark,
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT]
         },
-        { 
-          name: 'Synthetic Sandbox', 
-          path: '/synthetic-sandbox', 
-          icon: Sparkles, 
-          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
+        {
+          name: 'Synthetic Sandbox',
+          path: '/synthetic-sandbox',
+          icon: Sparkles,
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2]
         },
-        { 
-          name: 'Audit Trail', 
-          path: '/audit-logs', 
-          icon: History, 
-          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2] 
+        {
+          name: 'Audit Trail',
+          path: '/audit-logs',
+          icon: History,
+          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2]
         },
       ]
     }
@@ -117,10 +116,13 @@ const MainLayout = () => {
     <div className="min-h-screen flex bg-[#0a0a0a] text-white">
       {/* Sidebar Desktop */}
       <aside className="w-64 bg-[#111] border-r border-[#2a2a2a] flex flex-col hidden md:flex sticky top-0 h-screen z-30">
-        <Link to={currentRole === ROLES.APPLICANT ? "/applications" : "/dashboard"} className="h-16 flex items-center px-5 border-b border-[#2a2a2a]">
-          <BrandLogo size="md" variant="full" />
+        <Link to={currentRole === ROLES.APPLICANT ? "/applications" : "/dashboard"} className="h-16 flex items-center px-6 border-b border-[#2a2a2a] gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center text-white shadow-[0_0_15px_rgba(255,255,255,0.05)]">
+            <Zap className="w-5 h-5 text-amber-400" />
+          </div>
+          <span className="font-bold text-base tracking-tight text-white">Smart Underwrite</span>
         </Link>
-        
+
         <nav className="flex-1 py-4 px-3 space-y-4 overflow-y-auto no-scrollbar">
           {navSections.map((section, sIdx) => {
             const visibleLinks = section.links.filter(l => l.roles.includes(currentRole));
@@ -142,15 +144,15 @@ const MainLayout = () => {
                 {visibleLinks.map((link) => {
                   const Icon = link.icon;
                   const isActive = location.pathname === link.path;
-                  
+
                   return (
-                    <Link 
-                      key={link.path} 
-                      to={link.path} 
+                    <Link
+                      key={link.path}
+                      to={link.path}
                       className={clsx(
                         "flex items-center gap-2.5 px-3 py-2 rounded-xl font-medium text-xs transition-all",
-                        isActive 
-                          ? "bg-white text-black shadow-sm font-bold" 
+                        isActive
+                          ? "bg-white text-black shadow-sm font-bold"
                           : "text-gray-400 hover:bg-[#1c1c1c] hover:text-white"
                       )}
                     >
@@ -163,7 +165,7 @@ const MainLayout = () => {
             );
           })}
         </nav>
-        
+
         {/* User Card */}
         <div className="p-3 border-t border-[#2a2a2a] bg-[#0e0e0e]">
           <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-[#161616] border border-[#2a2a2a]">
@@ -196,11 +198,11 @@ const MainLayout = () => {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <BrandLogo size="sm" variant="compact" />
+            <span className="font-bold text-sm text-white">Smart Underwriting</span>
           </div>
-          
+
           <div className="flex-1"></div>
-          
+
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 bg-[#181818] border border-[#333] hover:border-amber-500/40 px-3 py-1.5 rounded-xl text-xs transition-colors">
               <span className="text-gray-400">Active Persona:</span>
@@ -257,12 +259,12 @@ const MainLayout = () => {
             })}
           </div>
         )}
-        
+
         {/* Page Content */}
         <main className="flex-1 p-4 sm:p-8 overflow-x-hidden">
           <Outlet />
         </main>
-        
+
         {/* Footer */}
         <footer className="bg-[#111] border-t border-[#2a2a2a] py-4 px-8 mt-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-gray-500">

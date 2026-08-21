@@ -28,11 +28,6 @@ export const BrandEmblem = ({ size = 38, className }) => {
             <stop offset="0%" stopColor="#FFFFFF" />
             <stop offset="100%" stopColor="#94A3B8" />
           </linearGradient>
-          <linearGradient id="glowLine" x1="0" y1="24" x2="48" y2="24" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.2" />
-            <stop offset="50%" stopColor="#A855F7" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="#60A5FA" stopOpacity="0.2" />
-          </linearGradient>
         </defs>
 
         {/* Outer Hexagonal Shield Matrix */}
@@ -54,7 +49,7 @@ export const BrandEmblem = ({ size = 38, className }) => {
         />
 
         {/* Dynamic Center Node */}
-        <circle cx="24" cy="24" r="3.5" fill="#FFFFFF" className="animate-pulse" />
+        <circle cx="24" cy="24" r="3.5" fill="#FFFFFF" />
 
         {/* Sub-Orbital Nodes */}
         <circle cx="24" cy="12" r="2" fill="#60A5FA" />
