@@ -7,6 +7,7 @@ import {
   ShieldCheck, Percent, Zap, Landmark
 } from 'lucide-react';
 import MacroMarketTicker from '../components/MacroMarketTicker';
+import { BrandLogo } from '../components/BrandLogo';
 import { useAuth, ROLES, ROLE_LABELS } from '../context/AuthContext';
 import clsx from 'clsx';
 
@@ -116,11 +117,8 @@ const MainLayout = () => {
     <div className="min-h-screen flex bg-[#0a0a0a] text-white">
       {/* Sidebar Desktop */}
       <aside className="w-64 bg-[#111] border-r border-[#2a2a2a] flex flex-col hidden md:flex sticky top-0 h-screen z-30">
-        <Link to={currentRole === ROLES.APPLICANT ? "/applications" : "/dashboard"} className="h-16 flex items-center px-6 border-b border-[#2a2a2a] gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center text-white shadow-[0_0_15px_rgba(255,255,255,0.05)]">
-            <Zap className="w-5 h-5 text-amber-400" />
-          </div>
-          <span className="font-bold text-base tracking-tight text-white">Smart Underwrite</span>
+        <Link to={currentRole === ROLES.APPLICANT ? "/applications" : "/dashboard"} className="h-16 flex items-center px-5 border-b border-[#2a2a2a]">
+          <BrandLogo size="md" variant="full" />
         </Link>
         
         <nav className="flex-1 py-4 px-3 space-y-4 overflow-y-auto no-scrollbar">
@@ -198,7 +196,7 @@ const MainLayout = () => {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <span className="font-bold text-sm text-white">Smart Underwriting</span>
+            <BrandLogo size="sm" variant="compact" />
           </div>
           
           <div className="flex-1"></div>

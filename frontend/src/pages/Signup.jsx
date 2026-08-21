@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, ROLES, ROLE_LABELS } from '../context/AuthContext';
-import { ShieldCheck, ChevronRight, AlertCircle, User, Mail, Lock, Briefcase } from 'lucide-react';
+import { ChevronRight, AlertCircle, User, Mail, Lock, Briefcase } from 'lucide-react';
+import { BrandLogo } from '../components/BrandLogo';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -23,10 +24,10 @@ export default function Signup() {
       if (res.success) {
         navigate('/dashboard');
       } else {
-        setError(res.message || 'Registration failed. User may already exist.');
+        setError(res.message || 'Registration failed');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed. User may already be registered with this email.');
+      setError(err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -34,7 +35,7 @@ export default function Signup() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background gradients */}
+      {/* Background grid */}
       <div 
         className="absolute inset-0 z-0 opacity-15 pointer-events-none" 
         style={{
@@ -49,11 +50,10 @@ export default function Signup() {
       
       <div className="w-full max-w-md relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
         <div className="text-center mb-6">
-          <div className="mx-auto w-12 h-12 border border-white/20 bg-[#0a0a0a] rounded-xl flex items-center justify-center mb-3 shadow-[0_0_20px_rgba(255,255,255,0.05)]">
-            <ShieldCheck className="w-6 h-6 text-white" />
+          <div className="flex justify-center mb-3">
+            <BrandLogo size="lg" variant="full" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Create Platform Account</h1>
-          <p className="text-gray-400 mt-1 text-xs">Register your user profile and role assignment</p>
+          <p className="text-gray-400 text-xs">Register your user profile and role assignment</p>
         </div>
 
         {error && (

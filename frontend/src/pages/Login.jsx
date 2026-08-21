@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, ROLES, DEMO_USERS } from '../context/AuthContext';
 import { ShieldCheck, ChevronRight, AlertCircle, Sparkles, UserCheck } from 'lucide-react';
+import { BrandLogo } from '../components/BrandLogo';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -54,11 +55,10 @@ export default function Login() {
       
       <div className="w-full max-w-lg relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
         <div className="text-center mb-6">
-          <div className="mx-auto w-12 h-12 border border-white/20 bg-[#0a0a0a] rounded-xl flex items-center justify-center mb-3 shadow-[0_0_20px_rgba(255,255,255,0.05)]">
-            <ShieldCheck className="w-6 h-6 text-white" />
+          <div className="flex justify-center mb-3">
+            <BrandLogo size="lg" variant="full" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Smart Underwriting Platform</h1>
-          <p className="text-gray-400 mt-1 text-sm">Sign in to access the Business Rules & Credit Engine</p>
+          <p className="text-gray-400 text-xs">Sign in to access the Business Rules & Credit Engine</p>
         </div>
 
         {/* Quick Demo Personas Panel */}

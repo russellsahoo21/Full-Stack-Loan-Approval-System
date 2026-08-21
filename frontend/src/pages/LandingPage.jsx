@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { BrandLogo } from "../components/BrandLogo";
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -26,17 +27,16 @@ export default function LandingPage() {
     setParticles(generated);
   }, []);
 
-  // 2. HERO TYPEWRITER LOOP
+  // 2. TYPING EFFECT
   useEffect(() => {
-    const heroWords = ["Explain.", "Automate.", "Govern.", "Audit.", "Scale."];
+    const words = ["Explain.", "Approve.", "Govern.", "Optimize."];
     let wordIndex = 0;
-    let charIndex = heroWords[0].length;
-    let isDeleting = true;
-    let timer;
+    let charIndex = 0;
+    let isDeleting = false;
+    let timeoutId;
 
-    const typeLoop = () => {
-      const currentWord = heroWords[wordIndex];
-
+    function type() {
+      const currentWord = words[wordIndex];
       if (isDeleting) {
         setTypedWord(currentWord.substring(0, charIndex - 1));
         charIndex--;
@@ -45,32 +45,17 @@ export default function LandingPage() {
         charIndex++;
       }
 
-      let speed = isDeleting ? 60 : 130;
+      let speed = isDeleting ? 40 : 100;
 
       if (!isDeleting && charIndex === currentWord.length) {
-        speed = 2000;
+        speed = 2200;
         isDeleting = true;
       } else if (isDeleting && charIndex === 0) {
         isDeleting = false;
-        wordIndex = (wordIndex + 1) % heroWords.length;
+        wordIndex = (wordIndex + 1) % words.length;
         speed = 400;
       }
 
-      timer = setTimeout(typeLoop, speed);
-    };
-
-    timer = setTimeout(typeLoop, 1800);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // 3. SCROLL REVEAL & COUNTERS OBSERVER
-  useEffect(() => {
-    const revealObserver = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("show");
-          }
         });
       },
       { threshold: 0.1, rootMargin: "0px 0px -50px 0px" }
@@ -225,9 +210,8 @@ export default function LandingPage() {
 
       <div className="nav-wrap">
         <nav className="navbar">
-          <div className="logo cursor-pointer" onClick={() => window.scrollTo(0, 0)}>
-            <div className="logo-box">NB</div>
-            <span>NBFC Smart Underwriting</span>
+          <div className="cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            <BrandLogo size="md" variant="full" />
           </div>
           <div className="nav-links">
             <a href="#engine">BRE Engine</a>
@@ -452,9 +436,10 @@ export default function LandingPage() {
         </button>
       </section>
 
-      <footer>
-        <span>© 2026 NBFC Smart Underwriting Platform</span>
-        <span>Enterprise Credit Solutions</span>
+      <footer style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '15px' }}>
+        <BrandLogo size="sm" variant="compact" subtitle="SMART NBFC ENGINE" />
+        <span style={{ fontSize: '12px', color: '#666' }}>© 2026 CREDEX Intelligent Underwriting & BRE Platform. All Rights Reserved.</span>
+        <span style={{ fontSize: '12px', color: '#888', fontFamily: 'monospace' }}>Enterprise Grade • RBI Regulatory Compliant</span>
       </footer>
 
       {/* INLINE STYLES */}
