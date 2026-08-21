@@ -1,4 +1,7 @@
+import dotenv from 'dotenv';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+
+dotenv.config();
 
 /**
  * AI Intelligence Suite Service
@@ -12,39 +15,44 @@ export const processCopilotQuery = async ({ message, persona = 'OFFICER', contex
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (apiKey && apiKey.startsWith('AIzaSy') && apiKey.length > 20) {
-    try {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const candidateModels = ['gemini-2.5-flash', 'gemini-3.6-flash', 'gemini-1.5-pro', 'gemini-2.0-flash'];
+    const genAI = new GoogleGenerativeAI(apiKey);
 
-      const systemPrompt = `You are CREDEX AI Copilot, a sophisticated financial risk advisor and credit underwriting copilot for Indian NBFCs and digital lending institutions.
+    const systemPrompt = `You are CREDEX AI Copilot, a sophisticated financial risk advisor and credit underwriting copilot for Indian NBFCs and digital lending institutions.
 Current Mode: ${persona === 'BORROWER' ? 'Borrower Advisory Mode (Empathetic, clear, actionable advice on FOIR, EMI optimization, CIBIL improvement, loan eligibility)' : 'Senior Credit Underwriter Mode (Institutional tone, regulatory compliance, credit appraisal memos, CAM synthesis, RBI EBLR benchmarking, exception mitigation)'}
 
 User Question: ${message}
 
 Provide a concise, professional markdown response with structured bullet points, clear numerical insights, and institutional recommendations.`;
 
-      const result = await model.generateContent(systemPrompt);
-      const reply = result.response.text();
+    for (const modelName of candidateModels) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(systemPrompt);
+        const reply = result.response.text();
 
-      return {
-        reply,
-        suggestions: persona === 'BORROWER' 
-          ? ['Simulate 60M Tenure EMI', 'Add Co-Applicant Income', 'Check Current Pre-Approved Limit']
-          : ['Draft Regulatory Credit Memo', 'Simulate Macro Interest Rate Hike', 'Check Portfolio Concentration'],
-        cardType: persona === 'BORROWER' ? 'CREDIT_ROADMAP' : 'CREDIT_MEMO',
-        cardData: persona === 'BORROWER' ? {
-          potentialCibilGain: '+25 pts in 90 days',
-          targetFoir: '38.4%',
-          maxEligibleAmount: 1850000
-        } : {
-          memoId: `CAM-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-          riskGrade: 'Grade A- (Prime)',
-          recommendedLimit: 1500000,
-          mitigationFactor: 'Verified Liquid Asset Coverage'
+        if (reply && reply.trim().length > 0) {
+          return {
+            reply,
+            suggestions: persona === 'BORROWER' 
+              ? ['Simulate 60M Tenure EMI', 'Add Co-Applicant Income', 'Check Current Pre-Approved Limit']
+              : ['Draft Regulatory Credit Memo', 'Simulate Macro Interest Rate Hike', 'Check Portfolio Concentration'],
+            cardType: persona === 'BORROWER' ? 'CREDIT_ROADMAP' : 'CREDIT_MEMO',
+            cardData: persona === 'BORROWER' ? {
+              potentialCibilGain: '+25 pts in 90 days',
+              targetFoir: '38.4%',
+              maxEligibleAmount: 1850000
+            } : {
+              memoId: `CAM-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+              riskGrade: 'Grade A- (Prime)',
+              recommendedLimit: 1500000,
+              mitigationFactor: 'Verified Liquid Asset Coverage'
+            }
+          };
         }
-      };
-    } catch (geminiErr) {
-      console.warn('⚠️ Gemini live call failed, falling back to built-in knowledge base:', geminiErr.message);
+      } catch (err) {
+        // Try next model in sequence
+      }
     }
   }
 

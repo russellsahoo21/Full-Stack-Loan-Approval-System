@@ -106,7 +106,7 @@ router.post('/', (req, res, next) => {
     if (apiKey && apiKey.startsWith('AIzaSy') && apiKey.length > 20) {
       try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
 
         const extractionPrompt = `You are a financial document analyzer for an Indian NBFC loan underwriting system.
 Analyze this bank statement / financial document and extract the following data points in JSON format only. No markdown fences.
