@@ -59,41 +59,110 @@ Provide a concise, professional markdown response with structured bullet points,
   const query = (message || '').toLowerCase();
   
   if (persona === 'BORROWER') {
-    if (query.includes('improve') || query.includes('chance') || query.includes('cibil') || query.includes('score')) {
+    if (
+      query.includes('maximize') || 
+      query.includes('approval') || 
+      query.includes('improve') || 
+      query.includes('chance') || 
+      query.includes('cibil') || 
+      query.includes('score') || 
+      query.includes('odds') || 
+      query.includes('boost') || 
+      query.includes('eligible') || 
+      query.includes('eligibility') ||
+      query.includes('borrow')
+    ) {
       return {
-        reply: `Here is your customized **AI Credit Health & Approval Roadmap**:
-1. **Reduce FOIR by Extending Tenure**: Extending your requested loan tenure from 36 to 60 months will reduce your proposed monthly EMI by ~32%, immediately lowering your FOIR below the 50% threshold.
-2. **Add Co-Applicant Income**: Declaring a co-applicant with monthly income ≥ ₹25,000 raises your maximum eligible loan ticket size to ₹18.5 Lakhs.
-3. **Maintain Liquid Balance Buffer**: Holding liquid savings / mutual funds equal to at least 4 monthly EMIs qualifies you for **Instant Fast-Track Approval**.`,
+        reply: `### 🎯 AI Credit Health & Approval Roadmap
+Here are 3 concrete strategies to **maximize your approval odds** immediately:
+
+1. **Optimize Tenure to Lower FOIR**:
+   - Extending requested loan tenure from **36 to 60 months** drops your monthly EMI by ~32%, instantly bringing your Fixed Obligation to Income Ratio (**FOIR**) from 54% to **36.8%** (Instant STP Approval).
+
+2. **Add a Co-Applicant with Verified Income**:
+   - Adding a co-applicant earning $\ge ₹25,000/\text{mo}$ raises your maximum borrowing eligibility from ₹10 Lakhs to **₹18.5 Lakhs**.
+
+3. **Verify Liquid Asset Buffer (Mutual Funds / Savings)**:
+   - Having liquid mutual funds or fixed deposits equal to $\ge 4\times$ your monthly EMI qualifies you for **Fast-Track Policy Override (Archetype E-01)** even if your credit score is near-prime (680–720).`,
         suggestions: ['Simulate 60M Tenure EMI', 'Add Co-Applicant Income', 'Check Current Pre-Approved Limit'],
         cardType: 'CREDIT_ROADMAP',
         cardData: {
           potentialCibilGain: '+25 pts in 90 days',
-          targetFoir: '38.4%',
+          targetFoir: '36.8%',
           maxEligibleAmount: 1850000
         }
       };
     }
 
-    if (query.includes('emi') || query.includes('tenure') || query.includes('calculate')) {
+    if (query.includes('emi') || query.includes('tenure') || query.includes('calculate') || query.includes('reduce') || query.includes('restructur')) {
       return {
-        reply: `Based on an institutional benchmark interest rate of **11.5% p.a.**, here is an instant restructuring simulation:
-- **At 36 Months**: Proposed EMI is ~₹26,380/mo (High FOIR risk: 54%).
-- **At 60 Months**: Proposed EMI drops to ~₹17,590/mo (Healthy FOIR: 36% - **Instant Approval**).
-- **At 84 Months**: Proposed EMI drops to ~₹13,920/mo (Lowest monthly outflow).`,
-        suggestions: ['Apply with 60 Months Tenure', 'Compare Interest Payouts', 'Request Rate Discount'],
+        reply: `### 📊 Instant EMI & Tenure Optimization Simulation
+Based on our external benchmark floating rate of **11.50% p.a.** for a ₹10,00,000 loan:
+- **At 36 Months**: EMI is **₹32,980/mo** $\rightarrow$ High FOIR burden (54.2% - *Requires Exception*).
+- **At 60 Months**: EMI drops to **₹21,990/mo** $\rightarrow$ Safe FOIR (**36.2%** - **Instant Approval**).
+- **At 84 Months**: EMI drops to **₹17,400/mo** $\rightarrow$ Lowest monthly cashflow impact.
+
+💡 **Recommendation**: Choose **60 Months** to achieve the best balance of low interest cost and instant automated approval.`,
+        suggestions: ['Apply with 60 Months Tenure', 'Compare Total Interest Payouts', 'Request Rate Discount'],
         cardType: 'EMI_SIMULATION',
         cardData: {
-          currentEmi: 26380,
-          optimizedEmi: 17590,
-          monthlySavings: 8790
+          currentEmi: 32980,
+          optimizedEmi: 21990,
+          monthlySavings: 10990
         }
       };
     }
 
+    if (query.includes('co-applicant') || query.includes('earning') || query.includes('income') || query.includes('salary') || query.includes('35k')) {
+      return {
+        reply: `### 👥 Co-Applicant Income Enhancement Analysis
+- **Primary Income**: ₹65,000/mo
+- **Co-Applicant Income (+₹35k/mo)**: ₹35,000/mo $\rightarrow$ **Combined Household Cashflow: ₹1,00,000/mo**.
+- **Impact on FOIR**: Compresses your overall leverage from 52% down to **34.5%**.
+- **Max Eligible Loan**: Increases from ₹10.0 Lakhs up to **₹24.5 Lakhs**.
+- **Audit Decision**: **Instant STP Green-Channel Approval**.`,
+        suggestions: ['Attach Co-Applicant Bank Statement', 'Simulate Higher Ticket Size', 'Proceed with Application'],
+        cardType: 'CREDIT_ROADMAP',
+        cardData: {
+          potentialCibilGain: 'Co-Borrower Guarantee',
+          targetFoir: '34.5%',
+          maxEligibleAmount: 2450000
+        }
+      };
+    }
+
+    if (query.includes('flag') || query.includes('exception') || query.includes('why') || query.includes('review') || query.includes('borderline')) {
+      return {
+        reply: `### 🔍 Why Applications Get Flagged for Exception Review
+Your application may be routed to our **Credit Exception Intelligence Queue** due to:
+1. **FOIR Between 50%–58%**: Monthly debt obligations slightly exceed standard 50% ceiling.
+2. **Near-Prime CIBIL (680–720)**: Clean 0-DPD track record but short credit history.
+3. **Self-Employed Cashflow Variation**: High bank account turnover but non-salaried tax returns.
+
+✅ **Fast Resolution**: Providing verified Mutual Funds or Fixed Deposits ($\ge 40\%$ of loan) enables our **L1 Credit Officers** to approve your file via **Fast-Track Override**.`,
+        suggestions: ['Upload Investment Proofs', 'Extend Loan Tenure to 60M', 'Contact Underwriting Desk']
+      };
+    }
+
     return {
-      reply: `I am your **AI Loan Copilot**. You can ask me how to maximize your loan approval odds, simulate EMI changes across tenures, or check eligibility factors for personal, vehicle, or business loans.`,
-      suggestions: ['How can I maximize my loan approval?', 'What is the best tenure for ₹10L?', 'Why is my FOIR important?']
+      reply: `### 🎯 AI Credit Health & Approval Roadmap
+Here are 3 concrete strategies to **maximize your approval odds** immediately:
+
+1. **Optimize Tenure to Lower FOIR**:
+   - Extending requested loan tenure from **36 to 60 months** drops your monthly EMI by ~32%, instantly bringing your Fixed Obligation to Income Ratio (**FOIR**) from 54% to **36.8%** (Instant STP Approval).
+
+2. **Add a Co-Applicant with Verified Income**:
+   - Adding a co-applicant earning $\ge ₹25,000/\text{mo}$ raises your maximum borrowing eligibility from ₹10 Lakhs to **₹18.5 Lakhs**.
+
+3. **Verify Liquid Asset Buffer (Mutual Funds / Savings)**:
+   - Having liquid mutual funds or fixed deposits equal to $\ge 4\times$ your monthly EMI qualifies you for **Fast-Track Policy Override (Archetype E-01)** even if your credit score is near-prime (680–720).`,
+      suggestions: ['How can I maximize my loan approval?', 'What is the optimal tenure to reduce FOIR?', 'How much loan can I get with co-applicant?'],
+      cardType: 'CREDIT_ROADMAP',
+      cardData: {
+        potentialCibilGain: '+25 pts in 90 days',
+        targetFoir: '36.8%',
+        maxEligibleAmount: 1850000
+      }
     };
   }
 
