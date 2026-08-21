@@ -143,13 +143,15 @@ const Dashboard = () => {
             <span>Refresh</span>
           </button>
           
-          <Link
-            to="/applications/new"
-            className="flex items-center gap-2 px-4 py-2 bg-white text-black font-semibold rounded-lg text-sm hover:bg-gray-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>New Application</span>
-          </Link>
+          {currentRole !== ROLES.ADMIN && (
+            <Link
+              to="/applications/new"
+              className="flex items-center gap-2 px-4 py-2 bg-white text-black font-semibold rounded-lg text-sm hover:bg-gray-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>{currentRole === ROLES.APPLICANT ? 'Apply for Loan' : 'New Application'}</span>
+            </Link>
+          )}
         </div>
       </div>
 

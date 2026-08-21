@@ -32,11 +32,11 @@ const MainLayout = () => {
           icon: Layers,
           roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT]
         },
-        {
-          name: currentRole === ROLES.APPLICANT ? 'Apply for Loan' : 'New Application',
-          path: '/applications/new',
-          icon: FileText,
-          roles: [ROLES.ADMIN, ROLES.L1, ROLES.L2, ROLES.APPLICANT]
+        { 
+          name: currentRole === ROLES.APPLICANT ? 'Apply for Loan' : 'New Application', 
+          path: '/applications/new', 
+          icon: FileText, 
+          roles: [ROLES.L1, ROLES.L2, ROLES.APPLICANT] 
         },
         {
           name: 'Exception Intelligence',
@@ -202,6 +202,7 @@ const MainLayout = () => {
           </div>
 
           <div className="flex-1"></div>
+<<<<<<< HEAD
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 bg-[#181818] border border-[#333] hover:border-amber-500/40 px-3 py-1.5 rounded-xl text-xs transition-colors">
@@ -218,6 +219,8 @@ const MainLayout = () => {
               </select>
             </div>
           </div>
+=======
+>>>>>>> 0ee740a (fix(ui): restrict admin new application access, fix Senior L2 Override and policy versioning routes)
         </header>
 
         {/* Live Macro Market & RBI Repo Ticker */}

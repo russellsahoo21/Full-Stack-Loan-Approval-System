@@ -102,14 +102,15 @@ const ApplicationsList = () => {
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
-          
-          <Link
-            to="/applications/new"
-            className="px-4 py-2.5 bg-white text-black font-bold rounded-xl text-xs hover:bg-gray-200 transition-all flex items-center gap-2 shadow-md"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>{currentRole === ROLES.APPLICANT ? 'Apply for Loan' : 'New Application'}</span>
-          </Link>
+          {currentRole !== ROLES.ADMIN && (
+            <Link
+              to="/applications/new"
+              className="px-4 py-2.5 bg-white text-black font-bold rounded-xl text-xs hover:bg-gray-200 transition-all flex items-center gap-2 shadow-md"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>{currentRole === ROLES.APPLICANT ? 'Apply for Loan' : 'New Application'}</span>
+            </Link>
+          )}
         </div>
       </div>
 

@@ -70,9 +70,11 @@ const ExceptionIntelligenceStudio = () => {
   }, [currentRole]);
 
   // Open Batch Decision Modal with auto-generated regulatory justification
-  const handleOpenBatchModal = (cluster, group, action) => {
+  const handleOpenBatchModal = (cluster, group, action, targetApp = null) => {
     let targetApps = [];
-    if (group === 'GROUP_A') targetApps = cluster.groupA || [];
+    if (targetApp) {
+      targetApps = [targetApp];
+    } else if (group === 'GROUP_A') targetApps = cluster.groupA || [];
     else if (group === 'GROUP_B') targetApps = cluster.groupB || [];
     else if (group === 'GROUP_C') targetApps = cluster.groupC || [];
     else targetApps = cluster.applications || [];
@@ -83,7 +85,7 @@ const ExceptionIntelligenceStudio = () => {
     }
 
     const defaultJustification = action === 'APPROVE'
-      ? `[Credit Exception Intelligence] Batch approved ${targetApps.length} cases under Exception Profile ${cluster.profileCode} (${cluster.name}). Empirical evidence shows ${cluster.benchmarkApprovalRate}% historical approval and low ${cluster.benchmarkDefaultRate}% default rate across ${cluster.historicalSampleSize} past loans. Compensating factor: ${cluster.keyMitigatingDrivers?.[0] || 'Liquid Asset Buffer'}.`
+      ? `[Credit Exception Intelligence] ${group === 'L2_QUEUE' ? 'Senior L2 Override approved' : 'Batch approved'} ${targetApps.length > 1 ? `${targetApps.length} cases` : `application ${targetApps[0]?.applicationId || targetApps[0]?._id}`} under Exception Profile ${cluster.profileCode} (${cluster.name}). Empirical evidence shows high repayment capability and compensating liquid asset buffer verified by Senior Risk Head.`
       : `[Credit Exception Intelligence] Batch rejected ${targetApps.length} cases under Exception Profile ${cluster.profileCode} due to elevated risk metrics beyond permissible NBFC tolerance.`;
 
     setOfficerNotes(defaultJustification);
@@ -408,7 +410,7 @@ const ExceptionIntelligenceStudio = () => {
 
                   {/* Policy Agility CTA (L2/Admin): Convert recurring safe pattern to new RuleSet */}
                   <Link
-                    to="/rules"
+                    to="/admin/rules"
                     className="px-3.5 py-2 bg-[#1c1c1c] hover:bg-[#262626] border border-[#444] hover:border-amber-400/50 text-amber-400 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 shadow-md"
                   >
                     <Sliders className="w-3.5 h-3.5" />
@@ -642,7 +644,7 @@ const ExceptionIntelligenceStudio = () => {
             </div>
 
             <Link
-              to="/rules"
+              to="/admin/rules"
               className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md"
             >
               <Sliders className="w-3.5 h-3.5" />
@@ -691,7 +693,7 @@ const ExceptionIntelligenceStudio = () => {
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         type="button"
-                        onClick={() => handleOpenBatchModal({ profileCode: 'L2_ESCALATION', name: 'Senior L2 Escalation' }, 'L2_QUEUE', 'APPROVE')}
+                        onClick={() => handleOpenBatchModal({ profileCode: 'L2_ESCALATION', name: 'Senior L2 Escalation' }, 'L2_QUEUE', 'APPROVE', app)}
                         className="px-3.5 py-2 bg-white hover:bg-gray-200 text-black font-bold rounded-xl text-xs transition-all flex items-center gap-1 shadow-md"
                       >
                         <Check className="w-3.5 h-3.5" />
