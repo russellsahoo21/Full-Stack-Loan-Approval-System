@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Activity, Sliders, AlertTriangle, TrendingUp, 
-  ShieldCheck, ShieldAlert, Sparkles, RefreshCw, 
+import {
+  Activity, Sliders, AlertTriangle, TrendingUp,
+  ShieldCheck, ShieldAlert, Sparkles, RefreshCw,
   ArrowRight, CheckCircle2, DollarSign, Layers, BarChart3
 } from 'lucide-react';
 import { formatCurrency } from '../utils/masking';
@@ -43,7 +43,7 @@ const AiStressTestingPage = () => {
 
   return (
     <div className="max-w-7xl mx-auto pb-16 animate-in fade-in duration-500 space-y-6">
-      
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#222] pb-5">
         <div className="flex items-center gap-3">
@@ -55,9 +55,7 @@ const AiStressTestingPage = () => {
               <h1 className="text-2xl font-bold text-white tracking-tight">
                 AI Macroeconomic Stress Testing Lab
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/30 font-bold">
-                Monte Carlo Risk Model
-              </span>
+
             </div>
             <p className="text-xs text-gray-400 mt-0.5">
               Simulate portfolio degradation under repo rate hikes, inflation surges, and sectoral recession shocks.
@@ -81,7 +79,7 @@ const AiStressTestingPage = () => {
 
       {/* Main Grid: Control Sliders (5 cols) vs Projected Impact Dashboard (7 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
+
         {/* Left Column: Stress Controls & Sliders (5 cols) */}
         <div className="lg:col-span-5 bg-[#111] border border-[#2a2a2a] rounded-2xl p-6 space-y-6 shadow-2xl">
           <div className="flex items-center gap-2 pb-3 border-b border-[#222]">
@@ -210,7 +208,7 @@ const AiStressTestingPage = () => {
 
         {/* Right Column: Projected Impact Gauges & AI Mitigations (7 cols) */}
         <div className="lg:col-span-7 space-y-5">
-          
+
           {/* Top Impact KPIs */}
           {sm && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
@@ -285,7 +283,7 @@ const AiStressTestingPage = () => {
                   <span className="font-mono text-orange-400">₹{sm?.projectedECL} Lakhs (+{Math.round(((sm?.projectedECL || 14.2) / 14.2 - 1) * 100)}% Surge)</span>
                 </div>
                 <div className="w-full bg-[#1c1c1c] h-3 rounded-full overflow-hidden border border-[#2c2c2c]">
-                  <div 
+                  <div
                     className="bg-gradient-to-r from-amber-500 to-red-500 h-full transition-all duration-500"
                     style={{ width: `${Math.min(100, ((sm?.projectedECL || 14.2) / 45) * 100)}%` }}
                   />

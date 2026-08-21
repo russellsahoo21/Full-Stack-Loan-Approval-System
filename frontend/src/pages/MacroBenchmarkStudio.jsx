@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Landmark, Activity, Sliders, RefreshCw, CheckCircle, 
-  TrendingUp, TrendingDown, Percent, Shield, AlertTriangle, 
+import {
+  Landmark, Activity, Sliders, RefreshCw, CheckCircle,
+  TrendingUp, TrendingDown, Percent, Shield, AlertTriangle,
   Calculator, ArrowRight, Gauge, Cpu, Check
 } from 'lucide-react';
 import { macroApi } from '../services/api';
@@ -159,7 +159,7 @@ const MacroBenchmarkStudio = () => {
 
   return (
     <div className="max-w-7xl mx-auto pb-16 animate-in fade-in duration-500 space-y-8">
-      
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#222] pb-5">
         <div>
@@ -188,7 +188,7 @@ const MacroBenchmarkStudio = () => {
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Reset to RBI Baseline</span>
           </button>
-          
+
           <button
             type="button"
             onClick={() => handleApplyBenchmark()}
@@ -249,10 +249,10 @@ const MacroBenchmarkStudio = () => {
 
       {/* Main Grid: Interactive MPC Controller & Facility Matrix */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
+
         {/* Left Column: Interactive Sliders & MPC Simulation Presets (2 cols) */}
         <div className="lg:col-span-2 space-y-6">
-          
+
           {/* Interactive Benchmark Controller */}
           <div className="bg-[#111] border border-[#333] p-6 space-y-6 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-[#222]">
@@ -349,11 +349,10 @@ const MacroBenchmarkStudio = () => {
                   key={idx}
                   type="button"
                   onClick={() => handlePresetSelect(p)}
-                  className={`p-4 text-left border transition-all space-y-1.5 ${
-                    repoRate === p.repoRate 
-                      ? 'bg-white text-black border-white shadow-lg' 
+                  className={`p-4 text-left border transition-all space-y-1.5 ${repoRate === p.repoRate
+                      ? 'bg-white text-black border-white shadow-lg'
                       : 'bg-[#181818] border-[#2a2a2a] text-gray-300 hover:border-[#444] hover:bg-[#202020]'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs">{p.name}</span>
